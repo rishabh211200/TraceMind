@@ -40,7 +40,7 @@ class TraceSimulator:
             affected_duration_workflows=self.config.incident_duration_workflows,
         )
 
-        # Initialize service actors
+        # Initialize the 7 core business microservices
         service_configs = get_default_service_configs()
         if self.config.services:
             service_configs.update(self.config.services)
@@ -105,13 +105,101 @@ class TraceSimulator:
             parent_event_id=parent_event_id,
         )
 
+    def _handle_customer_subspans(
+        self,
+        wf_idx: int,
+        execution_id: str,
+        workflow_id: str,
+        correlation_id: str,
+        wf_start_time: datetime,
+        elapsed_wf_ms: float,
+        parent_span_id: str,
+        inc_id: str | None,
+        is_incident: bool,
+    ) -> tuple[float, list[TraceEvent]]:
+        """Model customer-cache hit/miss and customer-db query child spans."""
+        events: list[TraceEvent] = []
+        cache_hit = self.sampler.sample_bernoulli(
+            self.services["customer-service"].config.cache_hit_rate
+        )
+        branch_time = wf_start_time + timedelta(milliseconds=elapsed_wf_ms)
+        added_ms = 0.0
+
+        if cache_hit:
+            cache_latency_ms = self.sampler.sample_latency(baseline_ms=3.0, sigma=0.20)
+            added_ms += cache_latency_ms
+            events.append(
+                TraceEvent(
+                    event_id=f"evt_{execution_id}_cache_hit",
+                    execution_id=execution_id,
+                    workflow_id=workflow_id,
+                    timestamp=branch_time + timedelta(milliseconds=cache_latency_ms),
+                    service="customer-cache",
+                    operation="cache_lookup",
+                    event_type=EventType.CACHE_HIT,
+                    status=EventStatus.SUCCESS,
+                    latency_ms=cache_latency_ms,
+                    parent_event_id=parent_span_id,
+                    correlation_id=correlation_id,
+                    metadata={"incident_id": inc_id, "is_incident": is_incident},
+                )
+            )
+        else:
+            cache_miss_latency_ms = 1.5
+            added_ms += cache_miss_latency_ms
+            events.append(
+                TraceEvent(
+                    event_id=f"evt_{execution_id}_cache_miss",
+                    execution_id=execution_id,
+                    workflow_id=workflow_id,
+                    timestamp=branch_time + timedelta(milliseconds=cache_miss_latency_ms),
+                    service="customer-cache",
+                    operation="cache_lookup",
+                    event_type=EventType.CACHE_MISS,
+                    status=EventStatus.SUCCESS,
+                    latency_ms=cache_miss_latency_ms,
+                    parent_event_id=parent_span_id,
+                    correlation_id=correlation_id,
+                    metadata={"incident_id": inc_id, "is_incident": is_incident},
+                )
+            )
+            # Query customer-db infrastructure dependency
+            db_mod = self.incident_engine.get_active_modifiers(wf_idx, "customer-db")
+            db_base = self.sampler.sample_latency(baseline_ms=35.0, sigma=0.30)
+            db_latency_ms = round(
+                (db_base * db_mod.latency_multiplier) + db_mod.extra_network_delay_ms, 2
+            )
+            added_ms += db_latency_ms
+            events.append(
+                TraceEvent(
+                    event_id=f"evt_{execution_id}_customer_db",
+                    execution_id=execution_id,
+                    workflow_id=workflow_id,
+                    timestamp=branch_time + timedelta(milliseconds=added_ms),
+                    service="customer-db",
+                    operation="query_customer_db",
+                    event_type=EventType.DATABASE_QUERY,
+                    status=EventStatus.SUCCESS,
+                    latency_ms=db_latency_ms,
+                    parent_event_id=parent_span_id,
+                    correlation_id=correlation_id,
+                    metadata={"incident_id": inc_id, "is_incident": is_incident},
+                )
+            )
+
+        return added_ms, events
+
     def _simulate_single_workflow(
         self, wf_idx: int, wf_start_time: datetime
     ) -> tuple[WorkflowExecution, list[TraceEvent]]:
-        """Simulate execution of one workflow across distributed services."""
+        """Simulate execution of one workflow across distributed microservices."""
         execution_id = f"exec_{self.config.seed}_{wf_idx:06d}"
         correlation_id = f"corr_{self.config.seed}_{wf_idx:06d}"
         workflow_id = "order_fulfillment"
+
+        active_inc = self.incident_engine.get_active_incident(wf_idx)
+        inc_id = active_inc.id if active_inc else None
+        is_incident = active_inc is not None
 
         wf_events: list[TraceEvent] = []
         elapsed_wf_ms = 0.0
@@ -133,7 +221,11 @@ class TraceSimulator:
                 status=EventStatus.SUCCESS,
                 latency_ms=0.0,
                 correlation_id=correlation_id,
-                metadata={"workflow_index": wf_idx},
+                metadata={
+                    "workflow_index": wf_idx,
+                    "incident_id": inc_id,
+                    "is_incident": is_incident,
+                },
             )
         )
 
@@ -172,72 +264,75 @@ class TraceSimulator:
                 failed_reason = f"{err_prefix}: {res.error_message}"
                 break
 
-            # Handle cache branch after customer-service
-            if svc_name == "customer-service":
-                cache_hit = self.sampler.sample_bernoulli(
-                    self.services["customer-service"].config.cache_hit_rate
-                )
-                branch_time = wf_start_time + timedelta(milliseconds=elapsed_wf_ms)
-                if cache_hit:
-                    cache_latency_ms = self.sampler.sample_latency(baseline_ms=3.0, sigma=0.20)
-                    elapsed_wf_ms += cache_latency_ms
-                    wf_events.append(
-                        TraceEvent(
-                            event_id=f"evt_{execution_id}_cache_hit",
-                            execution_id=execution_id,
-                            workflow_id=workflow_id,
-                            timestamp=branch_time + timedelta(milliseconds=cache_latency_ms),
-                            service="customer-cache",
-                            operation="cache_lookup",
-                            event_type=EventType.CACHE_HIT,
-                            status=EventStatus.SUCCESS,
-                            latency_ms=cache_latency_ms,
-                            parent_event_id=res.events[-1].event_id
-                            if res.events
-                            else root_event_id,
-                            correlation_id=correlation_id,
-                        )
-                    )
-                else:
-                    cache_miss_latency_ms = 1.5
-                    elapsed_wf_ms += cache_miss_latency_ms
-                    wf_events.append(
-                        TraceEvent(
-                            event_id=f"evt_{execution_id}_cache_miss",
-                            execution_id=execution_id,
-                            workflow_id=workflow_id,
-                            timestamp=branch_time + timedelta(milliseconds=cache_miss_latency_ms),
-                            service="customer-cache",
-                            operation="cache_lookup",
-                            event_type=EventType.CACHE_MISS,
-                            status=EventStatus.SUCCESS,
-                            latency_ms=cache_miss_latency_ms,
-                            parent_event_id=res.events[-1].event_id
-                            if res.events
-                            else root_event_id,
-                            correlation_id=correlation_id,
-                        )
-                    )
-                    # Query Database fallback
-                    db_res = self._execute_service_step(
-                        "database-service",
-                        "query_customer_db",
-                        wf_idx,
-                        execution_id,
-                        workflow_id,
-                        correlation_id,
-                        wf_start_time + timedelta(milliseconds=elapsed_wf_ms),
-                        res.events[-1].event_id if res.events else root_event_id,
-                    )
-                    wf_events.extend(db_res.events)
-                    elapsed_wf_ms += db_res.total_duration_ms
-                    total_retries += db_res.retry_count
-                    if not db_res.success:
-                        is_successful = False
-                        total_errors += 1
-                        failed_reason = f"Database query failed: {db_res.error_message}"
+            # Handle internal infrastructure sub-spans
+            parent_span_id = res.events[-1].event_id if res.events else root_event_id
 
-        # Finalize Workflow
+            if svc_name == "customer-service":
+                cust_added_ms, cust_events = self._handle_customer_subspans(
+                    wf_idx,
+                    execution_id,
+                    workflow_id,
+                    correlation_id,
+                    wf_start_time,
+                    elapsed_wf_ms,
+                    parent_span_id,
+                    inc_id,
+                    is_incident,
+                )
+                elapsed_wf_ms += cust_added_ms
+                wf_events.extend(cust_events)
+
+            elif svc_name == "inventory-service":
+                inv_db_mod = self.incident_engine.get_active_modifiers(wf_idx, "inventory-db")
+                inv_base = self.sampler.sample_latency(baseline_ms=25.0, sigma=0.25)
+                inv_db_lat = round(
+                    (inv_base * inv_db_mod.latency_multiplier) + inv_db_mod.extra_network_delay_ms,
+                    2,
+                )
+                elapsed_wf_ms += inv_db_lat
+                wf_events.append(
+                    TraceEvent(
+                        event_id=f"evt_{execution_id}_inventory_db",
+                        execution_id=execution_id,
+                        workflow_id=workflow_id,
+                        timestamp=wf_start_time + timedelta(milliseconds=elapsed_wf_ms),
+                        service="inventory-db",
+                        operation="query_inventory_db",
+                        event_type=EventType.DATABASE_QUERY,
+                        status=EventStatus.SUCCESS,
+                        latency_ms=inv_db_lat,
+                        parent_event_id=parent_span_id,
+                        correlation_id=correlation_id,
+                        metadata={"incident_id": inc_id, "is_incident": is_incident},
+                    )
+                )
+
+            elif svc_name == "payment-service":
+                pay_gw_mod = self.incident_engine.get_active_modifiers(wf_idx, "payment-gateway")
+                pay_base = self.sampler.sample_latency(baseline_ms=65.0, sigma=0.35)
+                pay_lat = round(
+                    (pay_base * pay_gw_mod.latency_multiplier) + pay_gw_mod.extra_network_delay_ms,
+                    2,
+                )
+                elapsed_wf_ms += pay_lat
+                wf_events.append(
+                    TraceEvent(
+                        event_id=f"evt_{execution_id}_payment_gw",
+                        execution_id=execution_id,
+                        workflow_id=workflow_id,
+                        timestamp=wf_start_time + timedelta(milliseconds=elapsed_wf_ms),
+                        service="payment-gateway",
+                        operation="process_charge",
+                        event_type=EventType.SERVICE_COMPLETED,
+                        status=EventStatus.SUCCESS,
+                        latency_ms=pay_lat,
+                        parent_event_id=parent_span_id,
+                        correlation_id=correlation_id,
+                        metadata={"incident_id": inc_id, "is_incident": is_incident},
+                    )
+                )
+
+        # Finalize Workflow Execution
         wf_completed_time = wf_start_time + timedelta(milliseconds=elapsed_wf_ms)
         terminal_event_type = (
             EventType.WORKFLOW_COMPLETED if is_successful else EventType.WORKFLOW_FAILED
@@ -257,7 +352,12 @@ class TraceSimulator:
                 latency_ms=round(elapsed_wf_ms, 2),
                 parent_event_id=root_event_id,
                 correlation_id=correlation_id,
-                metadata={"total_retries": total_retries, "total_errors": total_errors},
+                metadata={
+                    "total_retries": total_retries,
+                    "total_errors": total_errors,
+                    "incident_id": inc_id,
+                    "is_incident": is_incident,
+                },
             )
         )
 
@@ -271,7 +371,12 @@ class TraceSimulator:
             retry_count=total_retries,
             error_count=total_errors,
             failure_reason=failed_reason,
-            metadata={"correlation_id": correlation_id, "workflow_index": wf_idx},
+            metadata={
+                "correlation_id": correlation_id,
+                "workflow_index": wf_idx,
+                "incident_id": inc_id,
+                "is_incident_affected": is_incident,
+            },
         )
 
         return execution_record, wf_events

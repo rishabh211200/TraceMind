@@ -15,7 +15,7 @@ TraceSim generates granular distributed trace telemetry without requiring live d
 
 ## 2. Simulated Workflow Topology
 
-TraceSim executes an end-to-end distributed commerce/fulfillment pipeline across 7 distinct microservices:
+TraceSim executes an end-to-end distributed commerce/fulfillment pipeline across 7 distinct business microservices with explicit infrastructure dependencies:
 
 ```text
   [START]
@@ -28,42 +28,38 @@ TraceSim executes an end-to-end distributed commerce/fulfillment pipeline across
      ▼
 ┌──────────────────┐
 │ customer-service │ (get_customer_profile)
+│   ├── [customer-cache] (cache_lookup: ~85% hit / ~15% miss)
+│   └── [customer-db]    (query_customer_db: DATABASE_QUERY fallback)
 └──────┬───────────┘
      │
-     ├──────────────────────────┐ (Cache Miss: ~15%)
-     │ (Cache Hit: ~85%)        ▼
-     │                   ┌──────────────────┐
-     │                   │ database-service │ (query_customer_db)
-     │                   └────────┬─────────┘
-     │                            │
-     └────────────┬───────────────┘
-                  ▼
-         ┌──────────────────┐
-         │ inventory-service│ (reserve_inventory)
-         └────────┬─────────┘
-                  │
-                  ▼
-         ┌──────────────────┐
-         │ pricing-service  │ (calculate_pricing)
-         └────────┬─────────┘
-                  │
-                  ▼
-         ┌──────────────────┐
-         │ payment-service  │ (authorize_payment)
-         └────────┬─────────┘
-                  │
-                  ▼
-         ┌──────────────────┐
-         │  order-service   │ (create_order)
-         └────────┬─────────┘
-                  │
-                  ▼
-         ┌──────────────────────┐
-         │ notification-service │ (send_notification)
-         └────────┬─────────────┘
-                  │
-                  ▼
-                [END]
+     ▼
+┌──────────────────┐
+│ inventory-service│ (reserve_inventory)
+│   └── [inventory-db]   (query_inventory_db: DATABASE_QUERY)
+└──────┬───────────┘
+     │
+     ▼
+┌──────────────────┐
+│ pricing-service  │ (calculate_pricing)
+└──────┬───────────┘
+     │
+     ▼
+┌──────────────────┐
+│ payment-service  │ (authorize_payment)
+│   └── [payment-gateway](process_charge)
+└──────┬───────────┘
+     │
+     ▼
+┌──────────────────┐
+│  order-service   │ (create_order)
+└──────┬───────────┘
+     │
+     ▼
+┌──────────────────────┐
+│ notification-service │ (send_notification)
+└──────┬───────────────┘
+     │
+   [END]
 ```
 
 ---

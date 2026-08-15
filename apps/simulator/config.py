@@ -108,7 +108,7 @@ class SimulationConfig(BaseModel):
 
 
 def get_default_service_configs() -> dict[str, ServiceConfig]:
-    """Produce the default set of simulated distributed service profiles."""
+    """Produce the default set of simulated distributed microservice profiles."""
     return {
         "auth-service": ServiceConfig(
             name="auth-service",
@@ -129,18 +129,8 @@ def get_default_service_configs() -> dict[str, ServiceConfig]:
             timeout_ms=1500.0,
             max_retries=2,
             retry_backoff_ms=80.0,
-            dependencies=["database-service"],
+            dependencies=["inventory-service"],
             cache_hit_rate=0.85,
-        ),
-        "database-service": ServiceConfig(
-            name="database-service",
-            baseline_latency_ms=55.0,
-            latency_sigma=0.40,
-            capacity=160,
-            baseline_failure_rate=0.005,
-            timeout_ms=2500.0,
-            max_retries=2,
-            retry_backoff_ms=100.0,
         ),
         "inventory-service": ServiceConfig(
             name="inventory-service",
@@ -151,7 +141,7 @@ def get_default_service_configs() -> dict[str, ServiceConfig]:
             timeout_ms=2000.0,
             max_retries=3,
             retry_backoff_ms=120.0,
-            dependencies=["database-service"],
+            dependencies=["pricing-service"],
         ),
         "pricing-service": ServiceConfig(
             name="pricing-service",
@@ -162,6 +152,7 @@ def get_default_service_configs() -> dict[str, ServiceConfig]:
             timeout_ms=1200.0,
             max_retries=2,
             retry_backoff_ms=60.0,
+            dependencies=["payment-service"],
         ),
         "payment-service": ServiceConfig(
             name="payment-service",
@@ -172,7 +163,7 @@ def get_default_service_configs() -> dict[str, ServiceConfig]:
             timeout_ms=3500.0,
             max_retries=3,
             retry_backoff_ms=200.0,
-            dependencies=["database-service"],
+            dependencies=["order-service"],
         ),
         "order-service": ServiceConfig(
             name="order-service",
@@ -183,7 +174,7 @@ def get_default_service_configs() -> dict[str, ServiceConfig]:
             timeout_ms=2000.0,
             max_retries=2,
             retry_backoff_ms=90.0,
-            dependencies=["database-service"],
+            dependencies=["notification-service"],
         ),
         "notification-service": ServiceConfig(
             name="notification-service",

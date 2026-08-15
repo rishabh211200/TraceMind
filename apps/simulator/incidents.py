@@ -203,7 +203,7 @@ class IncidentEngine:
     def _apply_db_latency(
         self, mod: ServiceDegradationModifier, params: dict[str, Any], svc: str
     ) -> None:
-        if svc == "database-service":
+        if svc in ["customer-db", "inventory-db", "database-service"]:
             mod.latency_multiplier *= params.get("db_latency_multiplier", 5.0)
             mod.failure_rate_adder += params.get("db_failure_adder", 0.03)
         elif svc in ["customer-service", "inventory-service", "payment-service", "order-service"]:
@@ -213,22 +213,22 @@ class IncidentEngine:
     def _apply_payment_latency(
         self, mod: ServiceDegradationModifier, params: dict[str, Any], svc: str
     ) -> None:
-        if svc == "payment-service":
+        if svc in ["payment-service", "payment-gateway"]:
             mod.latency_multiplier *= params.get("payment_latency_multiplier", 4.0)
             mod.failure_rate_override = params.get("payment_failure_rate", 0.45)
         elif svc == "order-service":
             mod.latency_multiplier *= 1.5
 
     def _apply_retry_storm(self, mod: ServiceDegradationModifier, svc: str) -> None:
-        if svc in ["payment-service", "inventory-service", "database-service"]:
+        if svc in ["payment-service", "inventory-service", "customer-db", "inventory-db"]:
             mod.latency_multiplier *= 3.0
             mod.failure_rate_adder += 0.35
             mod.capacity_multiplier *= 0.4
 
     def _apply_cascading_failure(self, mod: ServiceDegradationModifier, svc: str) -> None:
-        if svc == "database-service":
+        if svc in ["customer-db", "inventory-db"]:
             mod.latency_multiplier *= 4.0
-        elif svc == "payment-service":
+        elif svc in ["payment-service", "payment-gateway"]:
             mod.latency_multiplier *= 3.5
             mod.failure_rate_override = 0.50
         elif svc == "order-service":
@@ -282,3 +282,11 @@ class IncidentEngine:
                 if incident.scenario_type == IncidentScenario.TRAFFIC_SPIKE:
                     mult *= float(incident.parameters.get("arrival_rate_multiplier", 5.0))
         return mult
+
+    def get_active_incident(self, workflow_index: int) -> Incident | None:
+        """Retrieve the active ground-truth incident for a workflow index if present."""
+        for item in self.scheduled_incidents:
+            if item["start_wf"] <= workflow_index < item["end_wf"]:
+                inc: Incident = item["incident"]
+                return inc
+        return None

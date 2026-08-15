@@ -51,7 +51,7 @@ def test_database_latency_causal_propagation():
     engine.plan_incidents(total_workflows=100, base_time=datetime.now(UTC))
 
     # Test modifier in active incident window (e.g. index 30)
-    db_mod = engine.get_active_modifiers(30, "database-service")
+    db_mod = engine.get_active_modifiers(30, "customer-db")
     customer_mod = engine.get_active_modifiers(30, "customer-service")
     payment_mod = engine.get_active_modifiers(30, "payment-service")
 
