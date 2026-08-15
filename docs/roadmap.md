@@ -1,0 +1,145 @@
+# TraceMind Engineering Roadmap
+
+This document outlines the phased milestone execution plan for TraceMind.
+
+---
+
+## Milestone 0: Repository Foundation & Core Architecture
+* **Objective**: Scaffold repository structure, Python/Node toolchains, CI/CD, documentation, and base domain schemas.
+* **Deliverables**:
+  - Monorepo folder hierarchy (`apps/`, `packages/`, `frontend/`, `docs/`, `tests/`).
+  - Python 3.12 `pyproject.toml` with dependencies and dev tools (Ruff, Mypy, Pytest).
+  - Pydantic domain models for traces, services, workflows, incidents, predictions.
+  - FastAPI application skeleton with health check.
+  - React/TypeScript/Vite frontend dashboard skeleton.
+  - GitHub Actions CI pipeline.
+* **Status**: Completed
+
+---
+
+## Milestone 1: TraceSim — Synthetic Distributed System Simulator
+* **Objective**: Build a deterministic discrete-event simulator generating multi-service workflow traces.
+* **Deliverables**:
+  - SimPy-based execution engine with configurable services (`auth`, `customer`, `inventory`, `pricing`, `payment`, `order`, `notification`).
+  - Configurable service latency distributions, failure probabilities, retries, and timeouts.
+  - Synthetic chaos scenarios (traffic spike, DB latency, payment degradation, cascading failures).
+  - Deterministic random seed reproducibility tests.
+  - Batch export to JSON/Parquet datasets.
+* **Acceptance**: Generate 10,000 reproducible workflows with ground truth logs.
+
+---
+
+## Milestone 2: Persistence & Query Engine
+* **Objective**: Implement PostgreSQL & TimescaleDB storage with SQLAlchemy and Alembic.
+* **Deliverables**:
+  - Database schema definitions for workflows, executions, trace events, and incidents.
+  - Alembic migrations.
+  - Async repository layers for ingestion and high-performance querying.
+* **Acceptance**: Simulator output stored and queried with sub-millisecond indexed lookup.
+
+---
+
+## Milestone 3: FastAPI Core Endpoints
+* **Objective**: Expose full RESTful API for workflows, traces, executions, and simulation controls.
+* **Deliverables**:
+  - `/api/v1/workflows`, `/api/v1/executions`, `/api/v1/services`
+  - `/api/v1/simulator/generate`, `/api/v1/simulator/incidents`
+  - OpenAPI auto-generated documentation and contract tests.
+* **Acceptance**: Full interactive API documentation and passing contract test suite.
+
+---
+
+## Milestone 4: Interactive Frontend Dashboard
+* **Objective**: Build developer-grade React dashboard for telemetry and workflow visualization.
+* **Deliverables**:
+  - System Overview KPI dashboard.
+  - Workflow Explorer with React Flow graph visualizer.
+  - Span waterfall Gantt chart for execution traces.
+  - Chaos injection control console.
+* **Acceptance**: End-to-end user journey visualizing traces and workflow topology.
+
+---
+
+## Milestone 5: Event Streaming with Kafka
+* **Objective**: Decouple trace generation and ingestion with Kafka event streaming.
+* **Deliverables**:
+  - Async Kafka producers and consumers.
+  - Streaming event pipeline: Simulator -> Kafka -> Ingestion Worker -> Database.
+* **Acceptance**: Asynchronous ingestion handling 5,000+ events/sec.
+
+---
+
+## Milestone 6: ML Failure & Latency Prediction
+* **Objective**: Supervised learning models predicting pre-completion workflow outcomes.
+* **Deliverables**:
+  - In-flight feature extraction pipeline.
+  - Model training & evaluation (Logistic Regression, Random Forest, XGBoost).
+  - TreeSHAP feature contribution calculation.
+  - MLflow experiment logging.
+* **Acceptance**: XGBoost failure classifier reporting Precision, Recall, ROC-AUC, and SHAP explanations.
+
+---
+
+## Milestone 7: Unsupervised Anomaly Detection
+* **Objective**: Identify abnormal workflow executions, latency spikes, and unusual transition paths.
+* **Deliverables**:
+  - Isolation Forest and statistical distribution outlier detection.
+  - Validation against synthetic ground-truth incidents.
+* **Acceptance**: Statistically significant detection of injected anomalies.
+
+---
+
+## Milestone 8: Root Cause Engine
+* **Objective**: Graph-based deterministic reasoning identifying culprit dependencies.
+* **Deliverables**:
+  - Causal graph traversal across dependency graphs.
+  - Hypothesis generation with confidence scores and structured evidence.
+* **Acceptance**: Known synthetic chaos incidents produce accurate, explainable root-cause reports.
+
+---
+
+## Milestone 9: Workflow Optimizer
+* **Objective**: Multi-objective path optimization and routing recommendations.
+* **Deliverables**:
+  - Historical path comparison algorithms.
+  - Weighted objective score (Latency vs. Cost vs. Reliability).
+* **Acceptance**: Optimizer recommends verifiable superior execution paths.
+
+---
+
+## Milestone 10: Tool-Grounded AI Analyst
+* **Objective**: Conversational LLM assistant grounded by safe TraceMind tools.
+* **Deliverables**:
+  - Provider-agnostic LLM interface (OpenAI, Anthropic, Gemini, Local).
+  - Explicit read-only tools for telemetry, traces, graph paths, and predictions.
+  - Chat interface in frontend.
+* **Acceptance**: AI answers complex diagnostic queries without hallucinations.
+
+---
+
+## Milestone 11: Application Observability
+* **Objective**: Instrument TraceMind backend and services with OpenTelemetry, Prometheus, and Grafana.
+* **Deliverables**:
+  - Prometheus metrics exporter.
+  - Structured JSON logs with correlation IDs.
+  - Pre-configured Grafana dashboard.
+* **Acceptance**: TraceMind observes its own operational metrics.
+
+---
+
+## Milestone 12: Production Containerization & Cloud Deployment
+* **Objective**: Production multi-stage Docker builds and automated cloud deployment.
+* **Deliverables**:
+  - Production Dockerfiles and Compose files.
+  - GitHub Actions automated deployment workflows.
+  - Smoke test verification suite.
+* **Acceptance**: Functional public cloud deployment.
+
+---
+
+## Milestone 13: Large-Scale HPC Performance Experiments
+* **Objective**: Scale TraceMind to 1M+ traces with multiprocessing and vectorization.
+* **Deliverables**:
+  - High-performance benchmark suite (10K to 10M traces).
+  - Vectorized Pandas/DuckDB analytical pipeline.
+  - Published research benchmark report in `docs/research/`.

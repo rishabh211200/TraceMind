@@ -1,0 +1,28 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv for fast dependency resolution
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Copy project definition
+COPY pyproject.toml README.md /app/
+
+# Install dependencies into system python
+RUN uv pip install --system -e ".[dev,ml]"
+
+# Copy application source code
+COPY apps /app/apps
+COPY packages /app/packages
+COPY migrations /app/migrations
+COPY alembic.ini /app/
+
+EXPOSE 8000
+
+CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
