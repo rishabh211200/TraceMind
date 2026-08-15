@@ -146,7 +146,35 @@ TraceMind tackles this using a combination of **discrete-event simulation**, **s
 
 ---
 
-## 7. Running with Docker Compose
+## 7. Generate Synthetic Data (TraceSim CLI)
+
+TraceMind includes a high-performance, deterministic discrete-event simulator for distributed microservice workflows:
+
+```bash
+# Generate 10,000 synthetic workflows with default baseline conditions
+python -m apps.simulator --workflows 10000 --seed 42
+
+# Inject a specific chaos incident scenario (e.g. Database Latency degradation)
+python -m apps.simulator --workflows 5000 --seed 42 --incident database_latency
+
+# Run with custom output directory and format (Parquet & JSONL)
+python -m apps.simulator --workflows 10000 --seed 42 --output-dir data/generated --format all
+```
+
+Supported chaos scenarios:
+* `database_latency`: 5.5x database latency spike propagating to dependent customer, inventory, and payment services.
+* `payment_degradation`: 4.2x payment latency degradation and HTTP 504 gateway timeouts.
+* `traffic_spike`: 5x surge in workflow arrival rate, saturating service concurrency and driving queueing delays.
+* `service_failure`: 95% error rate injection simulating service crash.
+* `network_latency`: 180ms transit latency added across all inter-service RPC invocations.
+* `retry_storm`: Cascading retries amplifying load on degraded dependencies.
+* `cascading_failure`: Multi-stage cascading failure across database, payment, and order queues.
+
+See [docs/research/simulator-dataset.md](docs/research/simulator-dataset.md) for full dataset schemas and distribution models.
+
+---
+
+## 8. Running with Docker Compose
 
 To launch the complete local stack (PostgreSQL TimescaleDB, Redis, API, and Frontend):
 
@@ -156,7 +184,7 @@ docker compose up -d
 
 ---
 
-## 8. Verification & Testing
+## 9. Verification & Testing
 
 TraceMind enforces rigorous test coverage across domain logic, simulation determinism, API contracts, and ML pipelines:
 
@@ -177,13 +205,13 @@ cd frontend && npm run build
 
 ---
 
-## 9. Development Roadmap
+## 10. Development Roadmap
 
 | Milestone | Scope | Status |
 |---|---|---|
 | **Milestone 0** | Repository Foundation, Architecture, CI/CD, Docs | **Completed** |
-| **Milestone 1** | TraceSim Engine & Synthetic Event Generation | Upcoming |
-| **Milestone 2** | PostgreSQL / TimescaleDB Persistence & Querying | Planned |
+| **Milestone 1** | TraceSim Engine & Synthetic Event Generation | **Completed** |
+| **Milestone 2** | PostgreSQL / TimescaleDB Persistence & Querying | Upcoming |
 | **Milestone 3** | FastAPI Workflow, Execution, and Simulation APIs | Planned |
 | **Milestone 4** | React/TypeScript Interactive Web Dashboard | Planned |
 | **Milestone 5** | Kafka Event Streaming & Async Pipeline | Planned |
@@ -200,6 +228,6 @@ See [docs/roadmap.md](docs/roadmap.md) for detailed deliverables.
 
 ---
 
-## 10. License
+## 11. License
 
 This project is licensed under the terms of the [MIT License](LICENSE).
