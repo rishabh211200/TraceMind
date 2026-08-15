@@ -12,7 +12,7 @@
 
 We take the security of **TraceMind** seriously. If you discover a security vulnerability, please do NOT create a public GitHub issue.
 
-Instead, please report security concerns directly by emailing the maintainer at [rishabh211200@users.noreply.github.com](mailto:rishabh211200@users.noreply.github.com) with the subject `[SECURITY] TraceMind Vulnerability Report`.
+Instead, please report security concerns directly by emailing the maintainer at [rishabh211200@gmail.com](mailto:rishabh211200@gmail.com) with the subject `[SECURITY] TraceMind Vulnerability Report`.
 
 Please include:
 * A description of the vulnerability.
