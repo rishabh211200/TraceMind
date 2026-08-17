@@ -7,6 +7,7 @@ from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from apps.api.routes import incidents_router, services_router, traces_router
 from packages.common.config import get_settings
 from packages.common.logging import configure_logging, get_logger
 
@@ -45,6 +46,11 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount API Routers
+app.include_router(traces_router)
+app.include_router(services_router)
+app.include_router(incidents_router)
 
 
 class HealthResponse(BaseModel):
