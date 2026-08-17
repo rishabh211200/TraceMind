@@ -174,9 +174,33 @@ See [docs/research/simulator-dataset.md](docs/research/simulator-dataset.md) for
 
 ---
 
-## 8. Running with Docker Compose
+## 8. Telemetry Ingestion & Persistence
 
-To launch the complete local stack (PostgreSQL TimescaleDB, Redis, API, and Frontend):
+TraceMind persists generated traces and real-time telemetry into **PostgreSQL + TimescaleDB**:
+
+```bash
+# Apply Alembic database migrations (creates tables and TimescaleDB hypertables)
+alembic upgrade head
+
+# Bulk ingest generated Parquet or JSONL dataset into PostgreSQL/TimescaleDB
+python -m packages.database.ingestion --input-dir data/generated --batch-size 5000
+```
+
+Querying persisted telemetry via REST API:
+* `GET /api/v1/traces/{trace_id}` — Trace execution metadata
+* `GET /api/v1/traces/{trace_id}/events` — Chronological spans
+* `GET /api/v1/traces/{trace_id}/tree` — Reconstructed DAG tree
+* `GET /api/v1/services/{service}/latency` — Database-side P50, P90, P95, P99 latency percentiles
+* `GET /api/v1/services/{service}/health` — Call volume, failure rate, and retry frequency
+* `GET /api/v1/incidents` — Ground-truth chaos incidents and affected traces
+
+See [docs/architecture/persistence.md](docs/architecture/persistence.md) for full persistence architecture and TimescaleDB hypertable design.
+
+---
+
+## 9. Running with Docker Compose
+
+To launch the complete local stack (PostgreSQL + TimescaleDB, Redis, API, and Frontend):
 
 ```bash
 docker compose up -d
@@ -184,9 +208,9 @@ docker compose up -d
 
 ---
 
-## 9. Verification & Testing
+## 10. Verification & Testing
 
-TraceMind enforces rigorous test coverage across domain logic, simulation determinism, API contracts, and ML pipelines:
+TraceMind enforces rigorous test coverage across domain logic, simulation determinism, database persistence, and API contracts:
 
 ```bash
 # Run unit and integration tests
@@ -205,14 +229,14 @@ cd frontend && npm run build
 
 ---
 
-## 10. Development Roadmap
+## 11. Development Roadmap
 
 | Milestone | Scope | Status |
 |---|---|---|
 | **Milestone 0** | Repository Foundation, Architecture, CI/CD, Docs | **Completed** |
 | **Milestone 1** | TraceSim Engine & Synthetic Event Generation | **Completed** |
-| **Milestone 2** | PostgreSQL / TimescaleDB Persistence & Querying | Upcoming |
-| **Milestone 3** | FastAPI Workflow, Execution, and Simulation APIs | Planned |
+| **Milestone 2** | PostgreSQL / TimescaleDB Persistence & Querying | **Completed** |
+| **Milestone 3** | FastAPI Workflow, Execution, and Simulation APIs | Upcoming |
 | **Milestone 4** | React/TypeScript Interactive Web Dashboard | Planned |
 | **Milestone 5** | Kafka Event Streaming & Async Pipeline | Planned |
 | **Milestone 6** | Failure & Latency ML Prediction Pipeline | Planned |

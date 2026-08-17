@@ -33,10 +33,12 @@ This document outlines the phased milestone execution plan for TraceMind.
 ## Milestone 2: Persistence & Query Engine
 * **Objective**: Implement PostgreSQL & TimescaleDB storage with SQLAlchemy and Alembic.
 * **Deliverables**:
-  - Database schema definitions for workflows, executions, trace events, and incidents.
-  - Alembic migrations.
-  - Async repository layers for ingestion and high-performance querying.
-* **Acceptance**: Simulator output stored and queried with sub-millisecond indexed lookup.
+  - PostgreSQL & TimescaleDB hypertable schema (`trace_events` partitioned on `timestamp`, `services`, `workflow_definitions`, `workflow_executions`, `incidents`).
+  - Alembic migrations (`001_initial_persistence_schema.py`) with TimescaleDB hypertable initialization and composite index optimizations.
+  - Async repository layer (`ServiceRepository`, `WorkflowRepository`, `TraceEventRepository`, `IncidentRepository`) with database-side `percentile_cont` latency aggregation and linear-time DAG trace tree reconstruction.
+  - High-throughput chunked bulk ingestion pipeline (`DatasetIngestor`) supporting Parquet & JSONL formats with idempotency guarantees.
+  - FastAPI query routes under `/api/v1/traces`, `/api/v1/services`, `/api/v1/incidents`.
+* **Status**: Completed
 
 ---
 
