@@ -24,42 +24,43 @@ TraceSim executes an end-to-end distributed commerce/fulfillment pipeline across
 ┌──────────────┐
 │ auth-service │ (authenticate_user)
 └──────┬───────┘
-     │
-     ▼
+       │
+       ▼
 ┌──────────────────┐
 │ customer-service │ (get_customer_profile)
 │   ├── [customer-cache] (cache_lookup: ~85% hit / ~15% miss)
 │   └── [customer-db]    (query_customer_db: DATABASE_QUERY fallback)
 └──────┬───────────┘
-     │
-     ▼
+       │
+       ▼
 ┌──────────────────┐
 │ inventory-service│ (reserve_inventory)
 │   └── [inventory-db]   (query_inventory_db: DATABASE_QUERY)
 └──────┬───────────┘
-     │
-     ▼
+       │
+       ▼
 ┌──────────────────┐
 │ pricing-service  │ (calculate_pricing)
 └──────┬───────────┘
-     │
-     ▼
+       │
+       ▼
 ┌──────────────────┐
 │ payment-service  │ (authorize_payment)
 │   └── [payment-gateway](process_charge)
 └──────┬───────────┘
-     │
-     ▼
+       │
+       ▼
 ┌──────────────────┐
 │  order-service   │ (create_order)
 └──────┬───────────┘
-     │
-     ▼
+       │
+       ▼
 ┌──────────────────────┐
 │ notification-service │ (send_notification)
 └──────┬───────────────┘
-     │
-   [END]
+       │
+       ▼
+     [END]
 ```
 
 ---
