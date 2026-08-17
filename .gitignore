@@ -110,3 +110,5 @@ logs/
 scratch/
 tmp/
 .temp/
+.pytest_tmp/
+.debug_tmp/
