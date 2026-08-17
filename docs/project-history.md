@@ -159,15 +159,20 @@ Milestone 2 bridges synthetic trace generation with relational storage and analy
 3. **Idempotency Guarantees**: Re-running ingestion on the same dataset produces 0 duplicate records without primary key violation errors.
 
 ### 4. Verification & Benchmark Results
-* **Test Suite**: 38/38 unit and integration tests passing in **3.93s** (`test_persistence_models.py`, `test_repositories.py`, `test_ingestion.py`, `test_trace_queries.py`, `test_api_persistence_endpoints.py`, `test_simulator.py`, `test_incidents.py`, `test_simulation_pipeline.py`).
+* **Test Suite**: 39/39 unit and integration tests passing in **2.49s** (`test_persistence_models.py`, `test_repositories.py`, `test_ingestion.py`, `test_trace_queries.py`, `test_api_persistence_endpoints.py`, `test_simulator.py`, `test_incidents.py`, `test_simulation_pipeline.py`).
 * **Static Analysis**: Mypy clean across 61 source files (0 errors); Ruff check and formatting clean across 78 source files.
-* **10,000 Workflow Ingestion Benchmark**:
+* **10,000 Workflow Ingestion Benchmark (192,059 Events)**:
   * Generated 10,000 workflows (**192,059 trace events**) in 2.26s.
   * Ingested into database in **13.08s** (**14,687 events/sec** | **765 workflows/sec**).
   * Single execution lookup latency: **P50 = 0.133ms** | **P95 = 0.270ms**.
   * Trace chronological events retrieval (19 spans): **P50 = 0.319ms** | **P95 = 0.513ms**.
-  * Trace DAG tree reconstruction: **P50 = 0.361ms** | **P95 = 0.563ms**.
+  * Trace DAG tree reconstruction: **P50 = 0.397ms** | **P95 = 0.636ms** (1,000-run mean: 0.431ms).
   * Service latency percentiles (192K events): **P50 = 21.314ms** | **P95 = 224.616ms**.
   * Service health & error rates: **P50 = 34.821ms** | **P95 = 239.815ms**.
+
+### 5. Final Performance Optimization: Single-Pass Telemetry Aggregation
+* **Problem**: `get_service_telemetry_summary()` previously performed $N$ sequential service-health queries after discovering distinct services ($\sim 578\text{ms}$ total round trips).
+* **Solution**: Replaced sequential loop with a single database-side `GROUP BY service` aggregation query computing event totals, failure rates, retry counts, timeout rates, and latency distributions in 1 database pass on PostgreSQL (2 queries in SQLite).
+* **Equivalence**: Verified 100% numerical and structural equivalence across all 12 services in `test_optimized_telemetry_summary_correctness_and_filters`.
 
 ---

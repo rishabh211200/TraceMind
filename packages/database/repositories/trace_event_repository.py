@@ -229,21 +229,212 @@ class TraceEventRepository:
             "latency": latency_stats,
         }
 
+    async def _get_telemetry_summary_pg(
+        self,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """Native single-query PostgreSQL percentile_cont + aggregations GROUP BY service."""
+        stmt = (
+            select(
+                TraceEventModel.service,
+                func.count(TraceEventModel.event_id).label("total_events"),
+                func.sum(case((TraceEventModel.status == "FAILURE", 1), else_=0)).label("failures"),
+                func.sum(case((TraceEventModel.status == "TIMEOUT", 1), else_=0)).label("timeouts"),
+                func.sum(case((TraceEventModel.status == "RETRY", 1), else_=0)).label("retries"),
+                func.count(case((TraceEventModel.latency_ms > 0.0, 1), else_=None)).label(
+                    "lat_count"
+                ),
+                func.avg(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                ).label("mean_lat"),
+                func.min(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                ).label("min_lat"),
+                func.max(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                ).label("max_lat"),
+                func.percentile_cont(0.50)
+                .within_group(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                )
+                .label("p50"),
+                func.percentile_cont(0.90)
+                .within_group(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                )
+                .label("p90"),
+                func.percentile_cont(0.95)
+                .within_group(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                )
+                .label("p95"),
+                func.percentile_cont(0.99)
+                .within_group(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                )
+                .label("p99"),
+            )
+            .group_by(TraceEventModel.service)
+            .order_by(TraceEventModel.service.asc())
+        )
+
+        if start_time:
+            stmt = stmt.where(TraceEventModel.timestamp >= start_time)
+        if end_time:
+            stmt = stmt.where(TraceEventModel.timestamp <= end_time)
+
+        rows = (await self.session.execute(stmt)).all()
+        summaries = []
+        for r in rows:
+            tot = int(r.total_events or 0)
+            fail = int(r.failures or 0)
+            tout = int(r.timeouts or 0)
+            ret = int(r.retries or 0)
+            l_count = int(r.lat_count or 0)
+
+            error_rate = (fail / tot * 100.0) if tot > 0 else 0.0
+            retry_rate = (ret / tot * 100.0) if tot > 0 else 0.0
+            timeout_rate = (tout / tot * 100.0) if tot > 0 else 0.0
+
+            summaries.append(
+                {
+                    "service": str(r.service),
+                    "total_events": tot,
+                    "failure_count": fail,
+                    "error_rate_percent": round(error_rate, 2),
+                    "retry_count": ret,
+                    "retry_rate_percent": round(retry_rate, 2),
+                    "timeout_count": tout,
+                    "timeout_rate_percent": round(timeout_rate, 2),
+                    "latency": {
+                        "service": str(r.service),
+                        "count": l_count,
+                        "mean_latency_ms": round(float(r.mean_lat), 2) if r.mean_lat else 0.0,
+                        "median_p50_latency_ms": round(float(r.p50), 2) if r.p50 else 0.0,
+                        "p90_latency_ms": round(float(r.p90), 2) if r.p90 else 0.0,
+                        "p95_latency_ms": round(float(r.p95), 2) if r.p95 else 0.0,
+                        "p99_latency_ms": round(float(r.p99), 2) if r.p99 else 0.0,
+                        "min_latency_ms": round(float(r.min_lat), 2) if r.min_lat else 0.0,
+                        "max_latency_ms": round(float(r.max_lat), 2) if r.max_lat else 0.0,
+                    },
+                }
+            )
+        return summaries
+
+    async def _get_telemetry_summary_fallback(
+        self,
+        start_time: datetime | None = None,
+        end_time: datetime | None = None,
+    ) -> list[dict[str, Any]]:
+        """SQLite / Dialect Fallback: Single GROUP BY query for counts/aggregates + grouped latencies."""
+        stmt = (
+            select(
+                TraceEventModel.service,
+                func.count(TraceEventModel.event_id).label("total_events"),
+                func.sum(case((TraceEventModel.status == "FAILURE", 1), else_=0)).label("failures"),
+                func.sum(case((TraceEventModel.status == "TIMEOUT", 1), else_=0)).label("timeouts"),
+                func.sum(case((TraceEventModel.status == "RETRY", 1), else_=0)).label("retries"),
+                func.count(case((TraceEventModel.latency_ms > 0.0, 1), else_=None)).label(
+                    "lat_count"
+                ),
+                func.avg(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                ).label("mean_lat"),
+                func.min(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                ).label("min_lat"),
+                func.max(
+                    case((TraceEventModel.latency_ms > 0.0, TraceEventModel.latency_ms), else_=None)
+                ).label("max_lat"),
+            )
+            .group_by(TraceEventModel.service)
+            .order_by(TraceEventModel.service.asc())
+        )
+
+        if start_time:
+            stmt = stmt.where(TraceEventModel.timestamp >= start_time)
+        if end_time:
+            stmt = stmt.where(TraceEventModel.timestamp <= end_time)
+
+        rows = (await self.session.execute(stmt)).all()
+        if not rows:
+            return []
+
+        lat_stmt = select(TraceEventModel.service, TraceEventModel.latency_ms).where(
+            TraceEventModel.latency_ms > 0.0
+        )
+        if start_time:
+            lat_stmt = lat_stmt.where(TraceEventModel.timestamp >= start_time)
+        if end_time:
+            lat_stmt = lat_stmt.where(TraceEventModel.timestamp <= end_time)
+
+        lat_rows = (await self.session.execute(lat_stmt)).all()
+        service_latencies: dict[str, list[float]] = {}
+        for s_row in lat_rows:
+            svc_name = str(s_row[0])
+            val = float(s_row[1])
+            if svc_name not in service_latencies:
+                service_latencies[svc_name] = []
+            service_latencies[svc_name].append(val)
+
+        summaries = []
+        for r in rows:
+            svc = str(r.service)
+            tot = int(r.total_events or 0)
+            fail = int(r.failures or 0)
+            tout = int(r.timeouts or 0)
+            ret = int(r.retries or 0)
+            l_count = int(r.lat_count or 0)
+
+            error_rate = (fail / tot * 100.0) if tot > 0 else 0.0
+            retry_rate = (ret / tot * 100.0) if tot > 0 else 0.0
+            timeout_rate = (tout / tot * 100.0) if tot > 0 else 0.0
+
+            lat_arr = service_latencies.get(svc, [])
+            if lat_arr:
+                p50 = float(np.percentile(lat_arr, 50))
+                p90 = float(np.percentile(lat_arr, 90))
+                p95 = float(np.percentile(lat_arr, 95))
+                p99 = float(np.percentile(lat_arr, 99))
+                min_l = float(np.min(lat_arr))
+                max_l = float(np.max(lat_arr))
+                mean_l = float(np.mean(lat_arr))
+            else:
+                p50 = p90 = p95 = p99 = min_l = max_l = mean_l = 0.0
+
+            summaries.append(
+                {
+                    "service": svc,
+                    "total_events": tot,
+                    "failure_count": fail,
+                    "error_rate_percent": round(error_rate, 2),
+                    "retry_count": ret,
+                    "retry_rate_percent": round(retry_rate, 2),
+                    "timeout_count": tout,
+                    "timeout_rate_percent": round(timeout_rate, 2),
+                    "latency": {
+                        "service": svc,
+                        "count": l_count,
+                        "mean_latency_ms": round(mean_l, 2),
+                        "median_p50_latency_ms": round(p50, 2),
+                        "p90_latency_ms": round(p90, 2),
+                        "p95_latency_ms": round(p95, 2),
+                        "p99_latency_ms": round(p99, 2),
+                        "min_latency_ms": round(min_l, 2),
+                        "max_latency_ms": round(max_l, 2),
+                    },
+                }
+            )
+        return summaries
+
     async def get_service_telemetry_summary(
         self,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
     ) -> list[dict[str, Any]]:
-        """Produce telemetry health summary aggregated across all distinct services."""
-        svc_stmt = select(TraceEventModel.service).distinct()
-        if start_time:
-            svc_stmt = svc_stmt.where(TraceEventModel.timestamp >= start_time)
-        if end_time:
-            svc_stmt = svc_stmt.where(TraceEventModel.timestamp <= end_time)
-
-        services = (await self.session.execute(svc_stmt)).scalars().all()
-        summaries = []
-        for svc in sorted(services):
-            summary = await self.get_service_health(svc, start_time, end_time)
-            summaries.append(summary)
-        return summaries
+        """Produce telemetry health summary aggregated across all distinct services in a single database pass."""
+        dialect_name = self.session.bind.dialect.name if self.session.bind else "postgresql"
+        if dialect_name == "postgresql":
+            return await self._get_telemetry_summary_pg(start_time, end_time)
+        return await self._get_telemetry_summary_fallback(start_time, end_time)

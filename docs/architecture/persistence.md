@@ -179,6 +179,31 @@ WHERE service = :service
   AND timestamp <= :end_time;
 ```
 
+### 5.3 System-Wide Telemetry Summary (Single Database Pass)
+Rather than executing $N$ sequential round-trip queries per service, `get_service_telemetry_summary()` computes system-wide call volumes, failures, timeouts, retries, and latency distributions in a single `GROUP BY service` database pass:
+
+```sql
+SELECT
+    service,
+    COUNT(event_id) AS total_events,
+    SUM(CASE WHEN status = 'FAILURE' THEN 1 ELSE 0 END) AS failures,
+    SUM(CASE WHEN status = 'TIMEOUT' THEN 1 ELSE 0 END) AS timeouts,
+    SUM(CASE WHEN status = 'RETRY' THEN 1 ELSE 0 END) AS retries,
+    COUNT(CASE WHEN latency_ms > 0.0 THEN 1 ELSE NULL END) AS lat_count,
+    AVG(CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS mean_lat,
+    MIN(CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS min_lat,
+    MAX(CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS max_lat,
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS p50,
+    PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS p90,
+    PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS p95,
+    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY CASE WHEN latency_ms > 0.0 THEN latency_ms ELSE NULL END) AS p99
+FROM trace_events
+WHERE (:start_time IS NULL OR timestamp >= :start_time)
+  AND (:end_time IS NULL OR timestamp <= :end_time)
+GROUP BY service
+ORDER BY service ASC;
+```
+
 ---
 
 ## 6. REST API Query Endpoints
