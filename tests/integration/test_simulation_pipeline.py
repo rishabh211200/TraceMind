@@ -11,9 +11,9 @@ from apps.simulator.workflow_engine import TraceSimulator
 from packages.domain.incident import IncidentScenario
 
 
-def test_end_to_end_simulation_and_export(tmp_path: Path):
+def test_end_to_end_simulation_and_export(temp_dir: Path):
     """Execute complete 250-workflow simulation, export to JSONL & Parquet, and verify datasets."""
-    export_dir = tmp_path / "sim_output"
+    export_dir = temp_dir / "sim_output"
     config = SimulationConfig(
         seed=42,
         workflow_count=250,
