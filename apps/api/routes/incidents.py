@@ -3,10 +3,11 @@
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.exceptions import EntityNotFoundException
 from packages.database.repositories.incident_repository import IncidentRepository
 from packages.database.session import get_db_session
 
@@ -103,10 +104,7 @@ async def get_incident(
     repo = IncidentRepository(session)
     incident = await repo.get_incident(incident_id)
     if not incident:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Incident '{incident_id}' not found",
-        )
+        raise EntityNotFoundException("Incident", incident_id)
     return IncidentResponse(
         id=incident.id,
         scenario_type=incident.scenario_type,

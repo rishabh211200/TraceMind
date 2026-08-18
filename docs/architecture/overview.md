@@ -110,7 +110,17 @@ TraceMind provides a unified pipeline that:
   - `get_incidents()`
 * Clear boundary between *Observed Facts*, *Model Predictions*, *Inferred Causes*, and *Recommendations*.
 
-### 3.6 Frontend Dashboard (`frontend/`)
+### 3.6 REST API Layer (`apps/api/`)
+* Built with FastAPI and Pydantic v2.
+* Conforms to RFC 7807 Problem Details for standardized, typed error responses.
+* Core Routing Domains:
+  - `/api/v1/workflows`: Workflow DAG definition registration, cycle validation, execution listings, and statistical aggregations.
+  - `/api/v1/executions`: Execution search and history with multi-column filtering, span chronological stream, and recursive DAG tree reconstruction.
+  - `/api/v1/simulator`: Scenario catalog, in-memory synthetic trace generation, and targeted causal chaos injection.
+  - `/api/v1/services`: Microservice profile catalog, baseline updates, latency percentiles, and system dependency graph topology (`/topology`).
+  - `/api/v1/incidents`: Ground-truth chaos incidents and affected execution trace listings.
+
+### 3.7 Frontend Dashboard (`frontend/`)
 * Built with React, TypeScript, Vite, and Tailwind CSS.
 * Core views:
   - **Dashboard**: Real-time KPI summaries, active anomalies, workflows at risk.
