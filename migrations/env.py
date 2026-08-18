@@ -9,6 +9,7 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from packages.common.config import get_settings
+from packages.database.models import Base
 
 config = context.config
 settings = get_settings()
@@ -19,7 +20,7 @@ if config.config_file_name is not None:
 # Set database URL dynamically from Settings
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

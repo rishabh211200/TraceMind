@@ -20,22 +20,25 @@ This document outlines the phased milestone execution plan for TraceMind.
 ## Milestone 1: TraceSim — Synthetic Distributed System Simulator
 * **Objective**: Build a deterministic discrete-event simulator generating multi-service workflow traces.
 * **Deliverables**:
-  - SimPy-based execution engine with configurable services (`auth`, `customer`, `inventory`, `pricing`, `payment`, `order`, `notification`).
-  - Configurable service latency distributions, failure probabilities, retries, and timeouts.
-  - Synthetic chaos scenarios (traffic spike, DB latency, payment degradation, cascading failures).
-  - Deterministic random seed reproducibility tests.
-  - Batch export to JSON/Parquet datasets.
-* **Acceptance**: Generate 10,000 reproducible workflows with ground truth logs.
+  - Discrete-event execution engine with configurable services (`auth`, `customer`, `database`, `inventory`, `pricing`, `payment`, `order`, `notification`).
+  - Heavy-tailed Log-Normal / Gamma latency distributions with natural tail spikes, capacity/queueing delays, retries, and client timeouts.
+  - Causal chaos scenarios (`TRAFFIC_SPIKE`, `DATABASE_LATENCY`, `PAYMENT_LATENCY_DEGRADATION`, `SERVICE_FAILURE`, `NETWORK_LATENCY`, `RETRY_STORM`, `CASCADING_FAILURE`).
+  - Preserved ground-truth metadata in canonical `Incident` entities.
+  - Streaming export to JSONL and Parquet formats (`executions`, `events`, `incidents`).
+  - Comprehensive statistical summaries and CLI tool (`python -m apps.simulator`).
+* **Status**: Completed
 
 ---
 
 ## Milestone 2: Persistence & Query Engine
 * **Objective**: Implement PostgreSQL & TimescaleDB storage with SQLAlchemy and Alembic.
 * **Deliverables**:
-  - Database schema definitions for workflows, executions, trace events, and incidents.
-  - Alembic migrations.
-  - Async repository layers for ingestion and high-performance querying.
-* **Acceptance**: Simulator output stored and queried with sub-millisecond indexed lookup.
+  - PostgreSQL & TimescaleDB hypertable schema (`trace_events` partitioned on `timestamp`, `services`, `workflow_definitions`, `workflow_executions`, `incidents`).
+  - Alembic migrations (`001_initial_persistence_schema.py`) with TimescaleDB hypertable initialization and composite index optimizations.
+  - Async repository layer (`ServiceRepository`, `WorkflowRepository`, `TraceEventRepository`, `IncidentRepository`) with database-side `percentile_cont` latency aggregation and linear-time DAG trace tree reconstruction.
+  - High-throughput chunked bulk ingestion pipeline (`DatasetIngestor`) supporting Parquet & JSONL formats with idempotency guarantees.
+  - FastAPI query routes under `/api/v1/traces`, `/api/v1/services`, `/api/v1/incidents`.
+* **Status**: Completed
 
 ---
 

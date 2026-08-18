@@ -146,9 +146,61 @@ TraceMind tackles this using a combination of **discrete-event simulation**, **s
 
 ---
 
-## 7. Running with Docker Compose
+## 7. Generate Synthetic Data (TraceSim CLI)
 
-To launch the complete local stack (PostgreSQL TimescaleDB, Redis, API, and Frontend):
+TraceMind includes a high-performance, deterministic discrete-event simulator for distributed microservice workflows:
+
+```bash
+# Generate 10,000 synthetic workflows with default baseline conditions
+python -m apps.simulator --workflows 10000 --seed 42
+
+# Inject a specific chaos incident scenario (e.g. Database Latency degradation)
+python -m apps.simulator --workflows 5000 --seed 42 --incident database_latency
+
+# Run with custom output directory and format (Parquet & JSONL)
+python -m apps.simulator --workflows 10000 --seed 42 --output-dir data/generated --format all
+```
+
+Supported chaos scenarios:
+* `database_latency`: 5.5x database latency spike propagating to dependent customer, inventory, and payment services.
+* `payment_degradation`: 4.2x payment latency degradation and HTTP 504 gateway timeouts.
+* `traffic_spike`: 5x surge in workflow arrival rate, saturating service concurrency and driving queueing delays.
+* `service_failure`: 95% error rate injection simulating service crash.
+* `network_latency`: 180ms transit latency added across all inter-service RPC invocations.
+* `retry_storm`: Cascading retries amplifying load on degraded dependencies.
+* `cascading_failure`: Multi-stage cascading failure across database, payment, and order queues.
+
+See [docs/research/simulator-dataset.md](docs/research/simulator-dataset.md) for full dataset schemas and distribution models.
+
+---
+
+## 8. Telemetry Ingestion & Persistence
+
+TraceMind persists generated traces and real-time telemetry into **PostgreSQL + TimescaleDB**:
+
+```bash
+# Apply Alembic database migrations (creates tables and TimescaleDB hypertables)
+alembic upgrade head
+
+# Bulk ingest generated Parquet or JSONL dataset into PostgreSQL/TimescaleDB
+python -m packages.database.ingestion --input-dir data/generated --batch-size 5000
+```
+
+Querying persisted telemetry via REST API:
+* `GET /api/v1/traces/{trace_id}` — Trace execution metadata
+* `GET /api/v1/traces/{trace_id}/events` — Chronological spans
+* `GET /api/v1/traces/{trace_id}/tree` — Reconstructed DAG tree
+* `GET /api/v1/services/{service}/latency` — Database-side P50, P90, P95, P99 latency percentiles
+* `GET /api/v1/services/{service}/health` — Call volume, failure rate, and retry frequency
+* `GET /api/v1/incidents` — Ground-truth chaos incidents and affected traces
+
+See [docs/architecture/persistence.md](docs/architecture/persistence.md) for full persistence architecture and TimescaleDB hypertable design.
+
+---
+
+## 9. Running with Docker Compose
+
+To launch the complete local stack (PostgreSQL + TimescaleDB, Redis, API, and Frontend):
 
 ```bash
 docker compose up -d
@@ -156,9 +208,9 @@ docker compose up -d
 
 ---
 
-## 8. Verification & Testing
+## 10. Verification & Testing
 
-TraceMind enforces rigorous test coverage across domain logic, simulation determinism, API contracts, and ML pipelines:
+TraceMind enforces rigorous test coverage across domain logic, simulation determinism, database persistence, and API contracts:
 
 ```bash
 # Run unit and integration tests
@@ -177,14 +229,14 @@ cd frontend && npm run build
 
 ---
 
-## 9. Development Roadmap
+## 11. Development Roadmap
 
 | Milestone | Scope | Status |
 |---|---|---|
 | **Milestone 0** | Repository Foundation, Architecture, CI/CD, Docs | **Completed** |
-| **Milestone 1** | TraceSim Engine & Synthetic Event Generation | Upcoming |
-| **Milestone 2** | PostgreSQL / TimescaleDB Persistence & Querying | Planned |
-| **Milestone 3** | FastAPI Workflow, Execution, and Simulation APIs | Planned |
+| **Milestone 1** | TraceSim Engine & Synthetic Event Generation | **Completed** |
+| **Milestone 2** | PostgreSQL / TimescaleDB Persistence & Querying | **Completed** |
+| **Milestone 3** | FastAPI Workflow, Execution, and Simulation APIs | Upcoming |
 | **Milestone 4** | React/TypeScript Interactive Web Dashboard | Planned |
 | **Milestone 5** | Kafka Event Streaming & Async Pipeline | Planned |
 | **Milestone 6** | Failure & Latency ML Prediction Pipeline | Planned |
@@ -200,6 +252,6 @@ See [docs/roadmap.md](docs/roadmap.md) for detailed deliverables.
 
 ---
 
-## 10. License
+## 11. License
 
 This project is licensed under the terms of the [MIT License](LICENSE).
