@@ -2,9 +2,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { servicesApi } from '../api/services';
 import { executionsApi } from '../api/executions';
 import { incidentsApi } from '../api/incidents';
-import { ServiceHealthSummary } from '../types/service';
-import { ExecutionSummary } from '../types/execution';
-import { Incident } from '../types/incident';
 import { StatCard } from '../components/common/StatCard';
 import { Badge } from '../components/common/Badge';
 import { SkeletonCard, SkeletonTable } from '../components/common/LoadingSkeleton';
@@ -26,9 +23,9 @@ interface OverviewViewProps {
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => {
-  const [telemetry, setTelemetry] = useState<ServiceHealthSummary[] | Record<string, ServiceHealthSummary>>([]);
-  const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
-  const [incidents, setIncidents] = useState<Incident[]>([]);
+  const [telemetry, setTelemetry] = useState<any[]>([]);
+  const [executions, setExecutions] = useState<any[]>([]);
+  const [incidents, setIncidents] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,9 +38,11 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
         executionsApi.listExecutions({ limit: 10 }).catch(() => ({ items: [], pagination: { total_count: 0, page: 1, limit: 10, total_pages: 1, has_next: false, has_prev: false } })),
         incidentsApi.listIncidents().catch(() => []),
       ]);
-      setTelemetry(telemetryRes);
-      setExecutions(execRes.items || []);
-      setIncidents(incRes || []);
+      const rawTelemetry = Array.isArray(telemetryRes) ? telemetryRes : Object.values(telemetryRes || {});
+      setTelemetry(rawTelemetry);
+      const rawExecs = (execRes as any)?.items || (execRes as any)?.executions || (Array.isArray(execRes) ? execRes : []);
+      setExecutions(rawExecs);
+      setIncidents(Array.isArray(incRes) ? incRes : []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load telemetry overview');
     } finally {
@@ -55,20 +54,29 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
     fetchData();
   }, [fetchData]);
 
-  // Aggregate metrics calculation
-  const servicesList: ServiceHealthSummary[] = Array.isArray(telemetry)
-    ? telemetry
-    : Object.values(telemetry || {});
-  const totalEvents = servicesList.reduce((acc, s) => acc + (s.total_events || 0), 0);
-  const totalErrors = servicesList.reduce((acc, s) => acc + (s.error_count || 0), 0);
+  // Aggregate metrics calculation with safe fallbacks
+  const servicesList = telemetry;
+  const totalEvents = servicesList.reduce(
+    (acc, s) => acc + (s.total_events || s.total_calls || 0),
+    0
+  );
+  const totalErrors = servicesList.reduce(
+    (acc, s) => acc + (s.error_count || s.failure_count || 0),
+    0
+  );
   const avgErrorRate = totalEvents > 0 ? (totalErrors / totalEvents) * 100 : 0.0;
   const avgLatency =
     servicesList.length > 0
-      ? servicesList.reduce((acc, s) => acc + (s.mean_latency_ms || 0), 0) / servicesList.length
+      ? servicesList.reduce(
+          (acc, s) => acc + (s.latency?.mean_latency_ms ?? s.mean_latency_ms ?? 0),
+          0
+        ) / servicesList.length
       : 0.0;
   const maxP95 =
     servicesList.length > 0
-      ? Math.max(...servicesList.map((s) => s.p95_latency_ms || 0))
+      ? Math.max(
+          ...servicesList.map((s) => s.latency?.p95_latency_ms ?? s.p95_latency_ms ?? 0)
+        )
       : 0.0;
 
   return (
@@ -97,7 +105,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
       <ErrorAlert error={error} onRetry={fetchData} />
 
       {/* KPI Stats Grid */}
-      {loading && Object.keys(telemetry).length === 0 ? (
+      {loading && servicesList.length === 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => (
             <SkeletonCard key={i} />
@@ -116,7 +124,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
           />
           <StatCard
             title="Avg Error Rate"
-            value={`${avgErrorRate.toFixed(2)}%`}
+            value={`${(avgErrorRate || 0).toFixed(2)}%`}
             subtitle={`${totalErrors} failures recorded`}
             icon={AlertTriangle}
             iconColor={avgErrorRate > 5 ? 'text-rose-400' : 'text-amber-400'}
@@ -125,14 +133,14 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
           />
           <StatCard
             title="Mean Service Latency"
-            value={`${avgLatency.toFixed(1)} ms`}
+            value={`${(avgLatency || 0).toFixed(1)} ms`}
             subtitle="Across all microservices"
             icon={Clock}
             iconColor="text-sky-400"
           />
           <StatCard
             title="Max P95 Latency"
-            value={`${maxP95.toFixed(1)} ms`}
+            value={`${(maxP95 || 0).toFixed(1)} ms`}
             subtitle="Tail latency threshold"
             icon={TrendingUp}
             iconColor="text-purple-400"
@@ -193,31 +201,42 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                  {servicesList.map((svc) => {
-                    const isHighError = svc.error_rate_percent > 5;
-                    const isDegraded = svc.error_rate_percent > 0 || svc.p95_latency_ms > 200;
+                  {servicesList.map((svc: any) => {
+                    const name = svc.service || svc.service_name || svc.name || 'unknown';
+                    const eventsCount = svc.total_events ?? svc.total_calls ?? 0;
+                    const errRate =
+                      svc.error_rate_percent !== undefined
+                        ? svc.error_rate_percent
+                        : svc.error_rate !== undefined
+                        ? svc.error_rate * 100
+                        : 0;
+                    const meanLat = svc.latency?.mean_latency_ms ?? svc.mean_latency_ms ?? 0;
+                    const p95Lat = svc.latency?.p95_latency_ms ?? svc.p95_latency_ms ?? 0;
+
+                    const isHighError = errRate > 5;
+                    const isDegraded = errRate > 0 || p95Lat > 200;
 
                     return (
                       <tr
-                        key={svc.service}
+                        key={name}
                         className="hover:bg-slate-800/40 transition cursor-pointer"
                         onClick={() =>
                           onNavigateTab &&
-                          onNavigateTab('services', { serviceName: svc.service })
+                          onNavigateTab('services', { serviceName: name })
                         }
                       >
                         <td className="py-2.5 font-semibold text-slate-100 flex items-center space-x-2">
                           <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                          <span>{svc.service}</span>
+                          <span>{name}</span>
                         </td>
-                        <td className="py-2.5">{svc.total_events.toLocaleString()}</td>
+                        <td className="py-2.5">{eventsCount.toLocaleString()}</td>
                         <td className="py-2.5">
                           <span className={isHighError ? 'text-rose-400 font-bold' : ''}>
-                            {svc.error_rate_percent.toFixed(2)}%
+                            {errRate.toFixed(2)}%
                           </span>
                         </td>
-                        <td className="py-2.5">{svc.mean_latency_ms.toFixed(1)} ms</td>
-                        <td className="py-2.5">{svc.p95_latency_ms.toFixed(1)} ms</td>
+                        <td className="py-2.5">{meanLat.toFixed(1)} ms</td>
+                        <td className="py-2.5">{p95Lat.toFixed(1)} ms</td>
                         <td className="py-2.5 text-right">
                           <Badge
                             variant={isHighError ? 'danger' : isDegraded ? 'warning' : 'success'}
@@ -254,24 +273,35 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
               </p>
             ) : (
               <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
-                {incidents.slice(0, 4).map((inc) => (
-                  <div
-                    key={inc.id}
-                    className="p-3 rounded-lg bg-slate-950/70 border border-slate-800/80 text-xs font-mono space-y-1 hover:border-slate-700 transition"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-rose-300 truncate">{inc.scenario_type}</span>
-                      <Badge variant={inc.severity === 'CRITICAL' ? 'danger' : 'warning'}>
-                        {inc.severity}
-                      </Badge>
+                {incidents.slice(0, 4).map((inc: any) => {
+                  const affected = Array.isArray(inc.affected_services)
+                    ? inc.affected_services.join(', ')
+                    : inc.affected_services || 'none';
+                  const durationSec =
+                    inc.duration_seconds ??
+                    (inc.started_at && inc.ended_at
+                      ? (new Date(inc.ended_at).getTime() - new Date(inc.started_at).getTime()) / 1000
+                      : 0);
+
+                  return (
+                    <div
+                      key={inc.id}
+                      className="p-3 rounded-lg bg-slate-950/70 border border-slate-800/80 text-xs font-mono space-y-1 hover:border-slate-700 transition"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-rose-300 truncate">{inc.scenario_type}</span>
+                        <Badge variant={inc.severity === 'CRITICAL' ? 'danger' : 'warning'}>
+                          {inc.severity}
+                        </Badge>
+                      </div>
+                      <p className="text-[11px] text-slate-400 line-clamp-2">{inc.description}</p>
+                      <div className="text-[10px] text-slate-500 pt-1 flex items-center justify-between">
+                        <span className="truncate max-w-[160px]">Affected: {affected}</span>
+                        <span>{durationSec.toFixed(0)}s</span>
+                      </div>
                     </div>
-                    <p className="text-[11px] text-slate-400 line-clamp-2">{inc.description}</p>
-                    <div className="text-[10px] text-slate-500 pt-1 flex items-center justify-between">
-                      <span>Affected: {inc.affected_services.join(', ')}</span>
-                      <span>{inc.duration_seconds.toFixed(0)}s</span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -301,36 +331,39 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
               </p>
             ) : (
               <div className="space-y-2">
-                {executions.slice(0, 4).map((e) => (
-                  <div
-                    key={e.id}
-                    onClick={() =>
-                      onNavigateTab && onNavigateTab('executions', { executionId: e.id })
-                    }
-                    className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-xs font-mono hover:border-emerald-500/40 cursor-pointer transition"
-                  >
-                    <div>
-                      <span className="font-semibold text-slate-200">{e.id}</span>
-                      <span className="text-[10px] text-slate-500 block">
-                        {e.workflow_definition_id}
-                      </span>
+                {executions.slice(0, 4).map((e: any) => {
+                  const duration = e.duration_ms ?? e.total_latency_ms ?? 0;
+                  return (
+                    <div
+                      key={e.id}
+                      onClick={() =>
+                        onNavigateTab && onNavigateTab('executions', { executionId: e.id })
+                      }
+                      className="p-2.5 rounded-lg bg-slate-950/60 border border-slate-800/80 flex items-center justify-between text-xs font-mono hover:border-emerald-500/40 cursor-pointer transition"
+                    >
+                      <div>
+                        <span className="font-semibold text-slate-200">{e.id}</span>
+                        <span className="text-[10px] text-slate-500 block">
+                          {e.workflow_definition_id}
+                        </span>
+                      </div>
+                      <div className="text-right flex items-center space-x-2">
+                        <span className="text-slate-400">{duration.toFixed(1)}ms</span>
+                        <Badge
+                          variant={
+                            e.status === 'COMPLETED'
+                              ? 'success'
+                              : e.status === 'TIMEOUT'
+                              ? 'warning'
+                              : 'danger'
+                          }
+                        >
+                          {e.status}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="text-right flex items-center space-x-2">
-                      <span className="text-slate-400">{e.duration_ms.toFixed(1)}ms</span>
-                      <Badge
-                        variant={
-                          e.status === 'COMPLETED'
-                            ? 'success'
-                            : e.status === 'TIMEOUT'
-                            ? 'warning'
-                            : 'danger'
-                        }
-                      >
-                        {e.status}
-                      </Badge>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { workflowsApi } from '../api/workflows';
-import { WorkflowDefinition, WorkflowStats } from '../types/workflow';
-import { ExecutionSummary } from '../types/execution';
+import { WorkflowDefinition } from '../types/workflow';
 import { WorkflowDag } from '../components/graphs/WorkflowDag';
 import { StatCard } from '../components/common/StatCard';
 import { Badge } from '../components/common/Badge';
@@ -33,8 +32,8 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
     initialWorkflowId || 'order_fulfillment'
   );
   const [activeWorkflow, setActiveWorkflow] = useState<WorkflowDefinition | null>(null);
-  const [stats, setStats] = useState<WorkflowStats | null>(null);
-  const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
+  const [stats, setStats] = useState<any | null>(null);
+  const [executions, setExecutions] = useState<any[]>([]);
 
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,9 +43,10 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
     setError(null);
     try {
       const list = await workflowsApi.listWorkflows();
-      setWorkflows(list);
-      if (list.length > 0 && !selectedWorkflowId) {
-        setSelectedWorkflowId(list[0].id);
+      const safeList = Array.isArray(list) ? list : [];
+      setWorkflows(safeList);
+      if (safeList.length > 0 && !selectedWorkflowId) {
+        setSelectedWorkflowId(safeList[0].id);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load workflows');
@@ -72,7 +72,8 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
       ]);
       setActiveWorkflow(wf);
       setStats(wfStats);
-      setExecutions(execsRes.items || []);
+      const execItems = (execsRes as any)?.items || (execsRes as any)?.executions || (Array.isArray(execsRes) ? execsRes : []);
+      setExecutions(execItems);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load workflow details');
     } finally {
@@ -85,6 +86,15 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
       loadWorkflowDetails(selectedWorkflowId);
     }
   }, [selectedWorkflowId, loadWorkflowDetails]);
+
+  const totalExecs = stats?.total_executions ?? 0;
+  const succExecs = stats?.successful_executions ?? stats?.completed_executions ?? 0;
+  const succRate = stats?.success_rate_percent ?? 100.0;
+  const errRate = stats?.error_rate_percent ?? 0.0;
+  const p50Dur = stats?.median_duration_ms ?? stats?.p50_duration_ms ?? 0.0;
+  const meanDur = stats?.mean_duration_ms ?? 0.0;
+  const p95Dur = stats?.p95_duration_ms ?? 0.0;
+  const maxDur = stats?.max_duration_ms ?? 0.0;
 
   return (
     <div className="space-y-6">
@@ -136,31 +146,31 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total Executions"
-            value={stats.total_executions.toLocaleString()}
-            subtitle={`${stats.successful_executions} completed successfully`}
+            value={totalExecs.toLocaleString()}
+            subtitle={`${succExecs} completed successfully`}
             icon={Layers}
             iconColor="text-emerald-400"
           />
           <StatCard
             title="Success Rate"
-            value={`${stats.success_rate_percent.toFixed(1)}%`}
-            subtitle={`${stats.error_rate_percent.toFixed(1)}% failure rate`}
-            icon={stats.success_rate_percent >= 95 ? CheckCircle2 : AlertCircle}
-            iconColor={stats.success_rate_percent >= 95 ? 'text-emerald-400' : 'text-amber-400'}
-            badge={stats.success_rate_percent >= 95 ? 'Optimal' : 'Degraded'}
-            badgeType={stats.success_rate_percent >= 95 ? 'success' : 'warning'}
+            value={`${Number(succRate).toFixed(1)}%`}
+            subtitle={`${Number(errRate).toFixed(1)}% failure rate`}
+            icon={succRate >= 95 ? CheckCircle2 : AlertCircle}
+            iconColor={succRate >= 95 ? 'text-emerald-400' : 'text-amber-400'}
+            badge={succRate >= 95 ? 'Optimal' : 'Degraded'}
+            badgeType={succRate >= 95 ? 'success' : 'warning'}
           />
           <StatCard
             title="P50 Duration"
-            value={`${stats.median_duration_ms.toFixed(1)} ms`}
-            subtitle={`Mean: ${stats.mean_duration_ms.toFixed(1)} ms`}
+            value={`${Number(p50Dur).toFixed(1)} ms`}
+            subtitle={`Mean: ${Number(meanDur).toFixed(1)} ms`}
             icon={Clock}
             iconColor="text-sky-400"
           />
           <StatCard
             title="P95 Duration"
-            value={`${stats.p95_duration_ms.toFixed(1)} ms`}
-            subtitle={`Max: ${stats.max_duration_ms.toFixed(1)} ms`}
+            value={`${Number(p95Dur).toFixed(1)} ms`}
+            subtitle={`Max: ${Number(maxDur).toFixed(1)} ms`}
             icon={TrendingUp}
             iconColor="text-purple-400"
           />
@@ -177,7 +187,7 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
             </h3>
           </div>
           <span className="text-xs font-mono text-slate-400">
-            {activeWorkflow?.nodes.length || 0} Steps | {activeWorkflow?.edges.length || 0} Transitions
+            {activeWorkflow?.nodes?.length || 0} Steps | {activeWorkflow?.edges?.length || 0} Transitions
           </span>
         </div>
 
@@ -222,40 +232,43 @@ export const WorkflowsView: React.FC<WorkflowsViewProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-800/60 text-slate-300">
-                {executions.map((exec) => (
-                  <tr
-                    key={exec.id}
-                    onClick={() => onNavigateExecution && onNavigateExecution(exec.id)}
-                    className="hover:bg-slate-800/40 transition cursor-pointer"
-                  >
-                    <td className="py-2.5 font-semibold text-slate-100">{exec.id}</td>
-                    <td className="py-2.5 text-slate-400">
-                      {new Date(exec.started_at).toISOString().replace('T', ' ').slice(0, 19)}
-                    </td>
-                    <td className="py-2.5 font-semibold">{exec.duration_ms.toFixed(1)} ms</td>
-                    <td className="py-2.5">{exec.retry_count}</td>
-                    <td className="py-2.5">
-                      {exec.is_incident_affected ? (
-                        <Badge variant="danger">{exec.incident_id || 'affected'}</Badge>
-                      ) : (
-                        <span className="text-slate-500">None</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 text-right">
-                      <Badge
-                        variant={
-                          exec.status === 'COMPLETED'
-                            ? 'success'
-                            : exec.status === 'TIMEOUT'
-                            ? 'warning'
-                            : 'danger'
-                        }
-                      >
-                        {exec.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))}
+                {executions.map((exec: any) => {
+                  const duration = exec.duration_ms ?? exec.total_latency_ms ?? 0;
+                  return (
+                    <tr
+                      key={exec.id}
+                      onClick={() => onNavigateExecution && onNavigateExecution(exec.id)}
+                      className="hover:bg-slate-800/40 transition cursor-pointer"
+                    >
+                      <td className="py-2.5 font-semibold text-slate-100">{exec.id}</td>
+                      <td className="py-2.5 text-slate-400">
+                        {exec.started_at ? new Date(exec.started_at).toISOString().replace('T', ' ').slice(0, 19) : '-'}
+                      </td>
+                      <td className="py-2.5 font-semibold">{Number(duration).toFixed(1)} ms</td>
+                      <td className="py-2.5">{exec.retry_count || 0}</td>
+                      <td className="py-2.5">
+                        {exec.is_incident_affected ? (
+                          <Badge variant="danger">{exec.incident_id || 'affected'}</Badge>
+                        ) : (
+                          <span className="text-slate-500">None</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-right">
+                        <Badge
+                          variant={
+                            exec.status === 'COMPLETED'
+                              ? 'success'
+                              : exec.status === 'TIMEOUT'
+                              ? 'warning'
+                              : 'danger'
+                          }
+                        >
+                          {exec.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
