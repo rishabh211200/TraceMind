@@ -86,7 +86,19 @@ TraceMind provides a unified pipeline that:
   - `anomalies`: Flagged statistical anomalies.
 * Indexed on `execution_id`, `workflow_id`, `timestamp`, `service`, and `event_type`.
 
-### 3.3 ML Engine (`apps/ml`)
+### 3.3 Event Streaming & Ingestion Engine (`packages/events`, `apps/worker`)
+* Powered by Apache Kafka in KRaft mode with asyncio-native `aiokafka` producers and consumers.
+* Topics:
+  - `tracemind.events.raw`: Partitioned causally by `execution_id` to guarantee FIFO span ordering.
+  - `tracemind.events.anomalies`: Stream of flagged statistical and ML-detected anomalies.
+* Streaming Ingestion Worker (`apps/worker/stream_ingestor.py`):
+  - Consumes from `tracemind.events.raw` using group `tracemind-ingestor`.
+  - Buffers spans into micro-batches ($1,000$ events / $50\text{ms}$).
+  - Executes single-pass multi-row bulk `insert(TraceEventModel)` into TimescaleDB with idempotent merge fallback.
+  - Commits Kafka offsets strictly after database persistence succeeds.
+* Dual-Mode Event Bus (`InMemoryEventBus`): Supports 100% hermetic CI/CD unit testing without requiring an external broker.
+
+### 3.4 ML Engine (`apps/ml`)
 * **Failure Prediction**: Binary classification problem targeting in-flight workflow success/failure using running features (elapsed time, completed step count, latency statistics, retry counts).
 * **Latency Prediction**: Regression problem predicting total workflow completion time.
 * **Explainability**: TreeSHAP values generated for every prediction to show the top contributing features and directional impact (+/- risk).

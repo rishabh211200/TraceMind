@@ -324,3 +324,68 @@ With Milestone 3 formally completed, all REST API contracts, graph topology stru
 * **Backend Static Analysis**: **0 errors** across 75 source files (Mypy) / 94 files (Ruff).
 
 ---
+
+## Milestone 5: Event Streaming with Kafka
+
+* **Status**: Completed
+* **Branch**: `feat/kafka-event-streaming`
+* **Objective**: Decouple synthetic trace generation from database persistence by implementing an asynchronous event streaming architecture using Apache Kafka in KRaft mode, micro-batched TimescaleDB ingestion workers, and dual-mode testing buses.
+
+### 1. Architectural Decisions
+1. **KRaft Mode Deployment**: Deployed Apache Kafka 3.7.0 without Zookeeper, reducing operational overhead, memory consumption, and startup latency.
+2. **Asyncio-Native Client**: Selected `aiokafka>=0.11.0` for non-blocking asynchronous event production and consumption integrated with the FastAPI event loop.
+3. **Partition Key Affinity (`execution_id`)**: All trace events are produced with `key = event.execution_id.encode('utf-8')`, guaranteeing all spans for a given workflow execution land on the same Kafka partition for strict FIFO causal ordering.
+4. **Dual-Mode Event Bus**: Implemented `InMemoryEventBus` alongside `KafkaTraceEventProducer`/`Consumer` to guarantee 100% hermetic CI/CD unit testing without requiring an active external broker.
+5. **Micro-Batching Ingestion Worker**: Implemented `StreamingIngestor` (`apps/worker/stream_ingestor.py`) buffering incoming records ($1,000$ events / $50\text{ms}$ flush window), executing bulk `insert(TraceEventModel)` with merge fallback for strict idempotency.
+6. **Offset Commit Invariant**: Manual offset commit (`consumer.commit()`) occurs strictly *after* successful database transaction commit, guaranteeing at-least-once delivery without data loss.
+
+### 2. Components Implemented
+
+#### Event Bus & Serializers (`packages/events/`)
+* `serializers.py`: `JsonTraceEventSerializer` with ISO 8601 UTC microsecond precision and Pydantic v2 validation.
+* `producer.py`: `AsyncTraceEventProducer` protocol, `KafkaTraceEventProducer` (aiokafka), `InMemoryTraceEventProducer`.
+* `consumer.py`: `AsyncTraceEventConsumer` protocol, `KafkaTraceEventConsumer` (aiokafka manual commit), `InMemoryTraceEventConsumer`.
+* `bus.py`: `InMemoryEventBus`, `create_producer()`, `create_consumer()` factory abstractions.
+
+#### Background Ingestion Worker (`apps/worker/`)
+* `stream_ingestor.py`: Standalone worker daemon consuming from `tracemind.events.raw` using group `tracemind-ingestor`, micro-batching, and signal trapping (`SIGINT`, `SIGTERM`).
+
+#### Real-Time Simulator Streaming (`apps/simulator/`)
+* `streaming.py`: `StreamingTraceSimulator` emitting canonical `TraceEvent` objects live as discrete-event execution progresses.
+
+#### REST API & Frontend Integrations
+* `apps/api/schemas/simulator.py`: Added `stream_to_kafka: bool = False` to `SimulationGenerateRequest` and `streamed_to_kafka: bool` to `SimulationGenerateResponse`.
+* `apps/api/routes/simulator.py`: Streaming trace generation branch with RFC 7807 error handling.
+* `frontend/src/views/SimulatorView.tsx`: Added "Stream to Kafka" toggle and execution result indicators.
+* `docker-compose.yml`: Added `kafka` (KRaft mode) and `worker` services.
+
+### 3. Verification & Performance Benchmark Results
+
+```text
+================================================================================
+                TraceMind Milestone 5 Streaming Pipeline Benchmark             
+================================================================================
+ Total Benchmark Events Processed   : 25,000 spans
+ Micro-Batch Buffer Limit           : 1,000 events / batch
+--------------------------------------------------------------------------------
+ 1. Producer Stream Ingestion Rate  : 287,472 events/sec (0.087s)
+ 2. Consumer & DB Persistence Rate  : 27,563 events/sec (0.907s)
+ 3. End-to-End Pipeline Throughput  : 25,151 events/sec (0.994s)
+ 4. Simulator Live Stream Rate      : 83,820 events/sec (3,835 spans in 0.046s)
+--------------------------------------------------------------------------------
+ Micro-Batch Flush Latencies (per 1,000-event batch):
+   • P50 Flush Latency              : 24.00 ms
+   • P95 Flush Latency              : 49.02 ms
+   • P99 Flush Latency              : 73.81 ms
+   • Mean Flush Latency             : 27.67 ms
+================================================================================
+ Target Throughput Criteria (>5,000 events/sec) : [PASSED] (5.5x margin)
+================================================================================
+```
+
+* **Test Suite**: **57/57 tests passing** in **4.33s** (`pytest -p no:cacheprovider tests/ -v`).
+* **Type Safety**: **Mypy clean (0 errors)** across 80 source files.
+* **Linter & Formatter**: **Ruff clean** across 99 source files.
+* **Frontend Checks**: **TypeScript type-check 0 errors**, **Vite build passing in 3.02s**.
+
+---
