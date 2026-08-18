@@ -33,6 +33,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
   const [simSeed, setSimSeed] = useState<number>(42);
   const [simScenario, setSimScenario] = useState<string>('');
   const [simPersist, setSimPersist] = useState<boolean>(true);
+  const [simStreamToKafka, setSimStreamToKafka] = useState<boolean>(false);
   const [simGenerating, setSimGenerating] = useState<boolean>(false);
   const [simResult, setSimResult] = useState<SimulationGenerateResponse | null>(null);
 
@@ -77,6 +78,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
         seed: simSeed || null,
         incident_scenario: simScenario || null,
         persist_to_db: simPersist,
+        stream_to_kafka: simStreamToKafka,
       });
       setSimResult(res);
     } catch (err) {
@@ -139,11 +141,12 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-[11px]">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1 text-[11px]">
             <div>Workflows: <strong className="text-slate-100">{simResult.executions_generated}</strong></div>
             <div>Spans: <strong className="text-slate-100">{simResult.events_generated}</strong></div>
             <div>Error Rate: <strong className="text-slate-100">{simResult.summary_statistics.error_rate_percent.toFixed(1)}%</strong></div>
             <div>Wall Time: <strong className="text-slate-100">{simResult.generation_wall_time_ms.toFixed(1)}ms</strong></div>
+            <div>Stream to Kafka: <strong className={simResult.streamed_to_kafka ? "text-purple-400 font-bold" : "text-slate-400"}>{simResult.streamed_to_kafka ? "Active" : "Off"}</strong></div>
           </div>
         </div>
       )}
@@ -248,6 +251,16 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
                 className="rounded bg-slate-950 border-slate-700 text-emerald-500"
               />
               <span className="text-[11px]">Persist generated traces to PostgreSQL database</span>
+            </label>
+
+            <label className="flex items-center space-x-2 pt-0.5 cursor-pointer select-none text-slate-300">
+              <input
+                type="checkbox"
+                checked={simStreamToKafka}
+                onChange={(e) => setSimStreamToKafka(e.target.checked)}
+                className="rounded bg-slate-950 border-slate-700 text-purple-500"
+              />
+              <span className="text-[11px]">Stream trace events live to Kafka (topic: <code className="text-purple-400">tracemind.events.raw</code>)</span>
             </label>
 
             <button
