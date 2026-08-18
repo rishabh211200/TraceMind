@@ -52,6 +52,22 @@ class Settings(BaseSettings):
         default="tracemind.events.anomalies",
         description="Detected anomalies event topic",
     )
+    kafka_consumer_group: str = Field(
+        default="tracemind-ingestor",
+        description="Default consumer group for streaming ingestion worker",
+    )
+    kafka_batch_size: int = Field(
+        default=1000,
+        description="Max micro-batch size before triggering database flush",
+    )
+    kafka_flush_interval_ms: int = Field(
+        default=50,
+        description="Max wait time (ms) before flushing pending micro-batch to database",
+    )
+    kafka_auto_offset_reset: str = Field(
+        default="earliest",
+        description="Offset reset policy ('earliest', 'latest')",
+    )
 
     # Simulator Defaults
     simulator_default_seed: int = Field(default=42, description="Default pseudo-random seed")
