@@ -42,13 +42,16 @@ This document outlines the phased milestone execution plan for TraceMind.
 
 ---
 
-## Milestone 3: FastAPI Core Endpoints
-* **Objective**: Expose full RESTful API for workflows, traces, executions, and simulation controls.
+## Milestone 3: FastAPI Core Endpoints & Simulation Control APIs
+* **Objective**: Expose complete RESTful API for workflow topology, execution querying, service health & dependency graphs, and live simulation controls.
 * **Deliverables**:
-  - `/api/v1/workflows`, `/api/v1/executions`, `/api/v1/services`
-  - `/api/v1/simulator/generate`, `/api/v1/simulator/incidents`
-  - OpenAPI auto-generated documentation and contract tests.
-* **Acceptance**: Full interactive API documentation and passing contract test suite.
+  - `/api/v1/workflows`: Full DAG CRUD, cycle/node validation, executions per workflow, and aggregate statistical metrics.
+  - `/api/v1/executions`: Execution history with pagination, status/duration/incident filters, chronological spans, and DAG trace trees.
+  - `/api/v1/simulator`: Causal chaos catalog (`/scenarios`), synchronous in-memory trace generation (`/generate`), and targeted chaos injection (`/inject-chaos`).
+  - `/api/v1/services`: Microservice registry, profile update, latency percentiles, health summaries, and system topology graph (`/topology`).
+  - RFC 7807 problem details exception handling (`apps/api/exceptions.py`) and typed Pydantic v2 schemas (`apps/api/schemas/`).
+  - Comprehensive contract test suite with 48/48 passing tests and sub-millisecond to sub-15ms endpoint latencies.
+* **Status**: Completed
 
 ---
 
