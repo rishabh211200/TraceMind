@@ -73,21 +73,38 @@ async def generate_simulation(
                 f"Invalid incident_scenario '{payload.incident_scenario}'. Valid options: {valid}"
             ) from None
 
-    # Run discrete-event simulation in worker thread
-    def _run_sim():
-        cfg = SimulationConfig(
-            seed=seed,
-            workflow_count=payload.workflow_count,
-            arrival_rate_per_second=payload.arrival_rate_rps,
-            incident_scenario=selected_scenario,
-        )
-        sim = TraceSimulator(cfg)
-        t0 = time.perf_counter()
-        res = sim.run()
-        gen_duration_ms = (time.perf_counter() - t0) * 1000.0
-        return res, gen_duration_ms
+    cfg = SimulationConfig(
+        seed=seed,
+        workflow_count=payload.workflow_count,
+        arrival_rate_per_second=payload.arrival_rate_rps,
+        incident_scenario=selected_scenario,
+    )
 
-    result, gen_duration_ms = await asyncio.to_thread(_run_sim)
+    t0 = time.perf_counter()
+    if payload.stream_to_kafka:
+        from apps.simulator.streaming import stream_simulation
+        from packages.events.bus import create_producer
+
+        producer = create_producer()
+        try:
+            await producer.start()
+            result = await stream_simulation(config=cfg, producer=producer)
+        except Exception as exc:
+            raise ValidationException(
+                f"Kafka streaming failed: {exc}. Ensure Kafka broker is reachable at configured bootstrap servers."
+            ) from exc
+        finally:
+            await producer.stop()
+        gen_duration_ms = (time.perf_counter() - t0) * 1000.0
+    else:
+
+        def _run_sim():
+            sim = TraceSimulator(cfg)
+            res = sim.run()
+            return res
+
+        result = await asyncio.to_thread(_run_sim)
+        gen_duration_ms = (time.perf_counter() - t0) * 1000.0
 
     persisted_executions = 0
     persisted_events = 0
@@ -140,6 +157,7 @@ async def generate_simulation(
         persisted_to_db=payload.persist_to_db,
         persisted_executions_count=persisted_executions,
         persisted_events_count=persisted_events,
+        streamed_to_kafka=payload.stream_to_kafka,
         persistence_wall_time_ms=round(persist_duration_ms, 2)
         if persist_duration_ms is not None
         else None,
