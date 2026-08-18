@@ -59,6 +59,14 @@ async def lifespan(app: FastAPI):
         environment=settings.environment,
         debug=settings.debug,
     )
+    try:
+        from packages.database.session import get_async_engine, init_db
+
+        engine = get_async_engine()
+        await init_db(engine)
+    except Exception as exc:
+        logger.warning("db_init_warning", error=str(exc))
+
     yield
     logger.info("stopping_tracemind_api")
 

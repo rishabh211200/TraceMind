@@ -26,7 +26,7 @@ interface OverviewViewProps {
 }
 
 export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => {
-  const [telemetry, setTelemetry] = useState<Record<string, ServiceHealthSummary>>({});
+  const [telemetry, setTelemetry] = useState<ServiceHealthSummary[] | Record<string, ServiceHealthSummary>>([]);
   const [executions, setExecutions] = useState<ExecutionSummary[]>([]);
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -37,7 +37,7 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
     setError(null);
     try {
       const [telemetryRes, execRes, incRes] = await Promise.all([
-        servicesApi.getTelemetrySummary().catch(() => ({})),
+        servicesApi.getTelemetrySummary().catch(() => []),
         executionsApi.listExecutions({ limit: 10 }).catch(() => ({ items: [], pagination: { total_count: 0, page: 1, limit: 10, total_pages: 1, has_next: false, has_prev: false } })),
         incidentsApi.listIncidents().catch(() => []),
       ]);
@@ -56,7 +56,9 @@ export const OverviewView: React.FC<OverviewViewProps> = ({ onNavigateTab }) => 
   }, [fetchData]);
 
   // Aggregate metrics calculation
-  const servicesList = Object.values(telemetry);
+  const servicesList: ServiceHealthSummary[] = Array.isArray(telemetry)
+    ? telemetry
+    : Object.values(telemetry || {});
   const totalEvents = servicesList.reduce((acc, s) => acc + (s.total_events || 0), 0);
   const totalErrors = servicesList.reduce((acc, s) => acc + (s.error_count || 0), 0);
   const avgErrorRate = totalEvents > 0 ? (totalErrors / totalEvents) * 100 : 0.0;
