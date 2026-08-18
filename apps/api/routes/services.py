@@ -1,12 +1,18 @@
-"""FastAPI routes for service discovery, latency distributions, and health telemetry."""
+"""FastAPI routes for service discovery, topology graph, latency distributions, and health telemetry."""
 
 from datetime import datetime
-from typing import Any
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.exceptions import EntityNotFoundException
+from apps.api.schemas.service import (
+    ServiceHealthResponse,
+    ServiceLatencyStatsResponse,
+    ServiceResponse,
+    ServiceTopologyResponse,
+    ServiceUpdate,
+)
 from packages.database.repositories.service_repository import ServiceRepository
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.session import get_db_session
@@ -14,47 +20,19 @@ from packages.database.session import get_db_session
 router = APIRouter(prefix="/api/v1/services", tags=["Services & Telemetry"])
 
 
-class ServiceResponse(BaseModel):
-    """Registered service profile schema."""
-
-    name: str
-    service_type: str
-    capacity: int
-    baseline_latency_ms: float
-    baseline_failure_rate: float
-    timeout_ms: float
-    max_retries: int
-    retry_backoff_ms: float
-    dependencies: list[Any]
-    metadata: dict[str, Any]
-
-
-class ServiceLatencyStatsResponse(BaseModel):
-    """Database-side latency percentile distribution response schema."""
-
-    service: str
-    count: int
-    mean_latency_ms: float
-    median_p50_latency_ms: float
-    p90_latency_ms: float
-    p95_latency_ms: float
-    p99_latency_ms: float
-    min_latency_ms: float
-    max_latency_ms: float
-
-
-class ServiceHealthResponse(BaseModel):
-    """Service operational reliability and error rate summary schema."""
-
-    service: str
-    total_events: int
-    failure_count: int
-    error_rate_percent: float
-    retry_count: int
-    retry_rate_percent: float
-    timeout_count: int
-    timeout_rate_percent: float
-    latency: ServiceLatencyStatsResponse
+def _to_service_response(s) -> ServiceResponse:
+    return ServiceResponse(
+        name=s.name,
+        service_type=s.service_type,
+        capacity=s.capacity,
+        baseline_latency_ms=s.baseline_latency_ms,
+        baseline_failure_rate=s.baseline_failure_rate,
+        timeout_ms=s.timeout_ms,
+        max_retries=s.max_retries,
+        retry_backoff_ms=s.retry_backoff_ms,
+        dependencies=s.dependencies if isinstance(s.dependencies, list) else [],
+        metadata=s.metadata_ or {},
+    )
 
 
 @router.get(
@@ -68,21 +46,21 @@ async def list_services(
     """Retrieve all registered business microservices and infrastructure components."""
     repo = ServiceRepository(session)
     services = await repo.list_services()
-    return [
-        ServiceResponse(
-            name=s.name,
-            service_type=s.service_type,
-            capacity=s.capacity,
-            baseline_latency_ms=s.baseline_latency_ms,
-            baseline_failure_rate=s.baseline_failure_rate,
-            timeout_ms=s.timeout_ms,
-            max_retries=s.max_retries,
-            retry_backoff_ms=s.retry_backoff_ms,
-            dependencies=s.dependencies,
-            metadata=s.metadata_,
-        )
-        for s in services
-    ]
+    return [_to_service_response(s) for s in services]
+
+
+@router.get(
+    "/topology",
+    response_model=ServiceTopologyResponse,
+    summary="Get Service Graph Topology",
+)
+async def get_service_topology(
+    session: AsyncSession = Depends(get_db_session),
+) -> ServiceTopologyResponse:
+    """Retrieve full system dependency graph with nodes and directed dependency edges."""
+    repo = ServiceRepository(session)
+    topology = await repo.get_service_topology()
+    return ServiceTopologyResponse(**topology)
 
 
 @router.get(
@@ -102,12 +80,53 @@ async def get_telemetry_summary(
 
 
 @router.get(
-    "/{service}/latency",
+    "/{service_name}",
+    response_model=ServiceResponse,
+    summary="Get Service Profile",
+)
+async def get_service(
+    service_name: str,
+    session: AsyncSession = Depends(get_db_session),
+) -> ServiceResponse:
+    """Retrieve details, baseline performance profile, and dependencies for a service."""
+    repo = ServiceRepository(session)
+    service = await repo.get_service(service_name)
+    if not service:
+        raise EntityNotFoundException("Service", service_name)
+    return _to_service_response(service)
+
+
+@router.put(
+    "/{service_name}",
+    response_model=ServiceResponse,
+    summary="Update Service Baseline Profile",
+)
+async def update_service(
+    service_name: str,
+    payload: ServiceUpdate,
+    session: AsyncSession = Depends(get_db_session),
+) -> ServiceResponse:
+    """Update baseline parameters (capacity, latency, failure rate, timeout, retries) for a service."""
+    repo = ServiceRepository(session)
+    existing = await repo.get_service(service_name)
+    if not existing:
+        raise EntityNotFoundException("Service", service_name)
+
+    updates = payload.model_dump(exclude_unset=True)
+    if "metadata" in updates:
+        updates["metadata_"] = updates.pop("metadata")
+
+    updated = await repo.update_service(service_name, updates)
+    return _to_service_response(updated)
+
+
+@router.get(
+    "/{service_name}/latency",
     response_model=ServiceLatencyStatsResponse,
     summary="Get Service Latency Percentiles (P50/P90/P95/P99)",
 )
 async def get_service_latency(
-    service: str,
+    service_name: str,
     start_time: datetime | None = Query(None, description="Start timestamp in UTC"),
     end_time: datetime | None = Query(None, description="End timestamp in UTC"),
     session: AsyncSession = Depends(get_db_session),
@@ -115,18 +134,18 @@ async def get_service_latency(
     """Compute database-side P50, P90, P95, P99, Mean, Min, and Max latency for a service."""
     repo = TraceEventRepository(session)
     stats = await repo.get_service_latency_stats(
-        service=service, start_time=start_time, end_time=end_time
+        service=service_name, start_time=start_time, end_time=end_time
     )
     return ServiceLatencyStatsResponse(**stats)
 
 
 @router.get(
-    "/{service}/health",
+    "/{service_name}/health",
     response_model=ServiceHealthResponse,
     summary="Get Service Operational Health & Error Rates",
 )
 async def get_service_health(
-    service: str,
+    service_name: str,
     start_time: datetime | None = Query(None, description="Start timestamp in UTC"),
     end_time: datetime | None = Query(None, description="End timestamp in UTC"),
     session: AsyncSession = Depends(get_db_session),
@@ -134,6 +153,6 @@ async def get_service_health(
     """Retrieve call volume, error rate, retry frequency, and timeout count for a service."""
     repo = TraceEventRepository(session)
     health = await repo.get_service_health(
-        service=service, start_time=start_time, end_time=end_time
+        service=service_name, start_time=start_time, end_time=end_time
     )
     return ServiceHealthResponse(**health)
