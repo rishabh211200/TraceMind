@@ -51,6 +51,9 @@ dependencies = [
     "xgboost>=2.1.0",
     "shap>=0.45.0",
 
+    # Event Streaming & Messaging
+    "aiokafka>=0.11.0",
+
     # Logging & Telemetry
     "structlog>=24.2.0",
     "python-json-logger>=2.0.7",
