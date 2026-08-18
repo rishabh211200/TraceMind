@@ -431,6 +431,117 @@ class DatasetIngestor:
             duration_seconds=duration,
         )
 
+    async def ingest_simulation_result(
+        self, result: Any, batch_size: int = 5000
+    ) -> IngestionReport:
+        """Directly ingest in-memory SimulationResult into the database."""
+        start_time = time.perf_counter()
+        svc_count, wf_count = await self.seed_metadata_and_topology()
+
+        # Ingest incidents
+        for inc in result.incidents:
+            duration = (inc.ended_at - inc.started_at).total_seconds() if inc.ended_at else 0.0
+            rec = {
+                "id": inc.id,
+                "scenario_type": str(
+                    inc.scenario_type.value
+                    if hasattr(inc.scenario_type, "value")
+                    else inc.scenario_type
+                ),
+                "severity": str(
+                    inc.severity.value if hasattr(inc.severity, "value") else inc.severity
+                ),
+                "started_at": inc.started_at,
+                "ended_at": inc.ended_at,
+                "duration_seconds": duration,
+                "affected_services": inc.affected_services,
+                "ground_truth_root_cause": inc.ground_truth_root_cause,
+                "description": inc.description,
+                "parameters": inc.parameters,
+                "metadata_": {},
+            }
+            await self.session.merge(IncidentModel(**rec))
+        await self.session.commit()
+        inc_count = len(result.incidents)
+
+        # Ingest executions
+        exec_records = []
+        for item in result.executions:
+            meta = item.metadata or {}
+            status_val = item.status.value if hasattr(item.status, "value") else str(item.status)
+            exec_records.append(
+                {
+                    "id": str(item.id),
+                    "workflow_definition_id": str(
+                        item.workflow_definition_id or "order_fulfillment"
+                    ),
+                    "started_at": item.started_at,
+                    "completed_at": item.completed_at,
+                    "duration_ms": float(item.total_latency_ms),
+                    "status": status_val,
+                    "retry_count": int(item.retry_count),
+                    "error_count": int(item.error_count),
+                    "failure_reason": item.failure_reason,
+                    "incident_id": meta.get("incident_id"),
+                    "is_incident_affected": bool(meta.get("is_incident_affected", False)),
+                    "metadata_": meta,
+                }
+            )
+
+        for i in range(0, len(exec_records), batch_size):
+            chunk = exec_records[i : i + batch_size]
+            try:
+                await self.session.execute(insert(WorkflowExecutionModel), chunk)
+                await self.session.commit()
+            except Exception:
+                await self.session.rollback()
+                for r in chunk:
+                    await self.session.merge(WorkflowExecutionModel(**r))
+                await self.session.commit()
+
+        # Ingest events
+        event_records = []
+        for ev in result.events:
+            ev_type = ev.event_type.value if hasattr(ev.event_type, "value") else str(ev.event_type)
+            ev_status = ev.status.value if hasattr(ev.status, "value") else str(ev.status)
+            event_records.append(
+                {
+                    "event_id": str(ev.event_id),
+                    "timestamp": ev.timestamp,
+                    "execution_id": str(ev.execution_id),
+                    "workflow_id": str(ev.workflow_id or "order_fulfillment"),
+                    "service": str(ev.service),
+                    "operation": str(ev.operation),
+                    "event_type": ev_type,
+                    "status": ev_status,
+                    "latency_ms": float(ev.latency_ms),
+                    "parent_event_id": ev.parent_event_id,
+                    "correlation_id": ev.correlation_id,
+                    "metadata_": ev.metadata or {},
+                }
+            )
+
+        for i in range(0, len(event_records), batch_size):
+            chunk_ev = event_records[i : i + batch_size]
+            try:
+                await self.session.execute(insert(TraceEventModel), chunk_ev)
+                await self.session.commit()
+            except Exception:
+                await self.session.rollback()
+                for r in chunk_ev:
+                    await self.session.merge(TraceEventModel(**r))
+                await self.session.commit()
+
+        duration = time.perf_counter() - start_time
+        return IngestionReport(
+            services_count=svc_count,
+            workflow_definitions_count=wf_count,
+            incidents_count=inc_count,
+            executions_count=len(exec_records),
+            events_count=len(event_records),
+            duration_seconds=duration,
+        )
+
 
 async def run_ingestion_cli(
     input_dir: str = "data/generated", batch_size: int = 5000

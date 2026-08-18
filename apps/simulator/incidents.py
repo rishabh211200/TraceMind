@@ -6,6 +6,99 @@ from typing import Any
 from apps.simulator.distributions import DeterministicSampler
 from packages.domain.incident import Incident, IncidentScenario, Severity
 
+ChaosScenario = IncidentScenario
+
+INCIDENT_PRESETS: dict[IncidentScenario, dict[str, Any]] = {
+    IncidentScenario.DATABASE_LATENCY: {
+        "name": "Database IOPS Saturation & Latency",
+        "description": "Database read/write queries degraded 5.5x, propagating latency to customer, inventory, and payment dependencies.",
+        "severity": Severity.HIGH,
+        "affected_services": [
+            "database-service",
+            "customer-service",
+            "inventory-service",
+            "payment-service",
+            "order-service",
+        ],
+        "ground_truth_root_cause": "Database shared storage IOPS degradation and connection pool saturation",
+        "parameters": {"db_latency_multiplier": 5.5, "db_failure_adder": 0.04},
+    },
+    IncidentScenario.PAYMENT_LATENCY_DEGRADATION: {
+        "name": "Payment Gateway Timeout & Degradation",
+        "description": "Payment processing latency increased 4.2x with a 45% transient timeout rate triggering client retries.",
+        "severity": Severity.HIGH,
+        "affected_services": ["payment-service", "order-service"],
+        "ground_truth_root_cause": "Third-party payment gateway latency spike and HTTP 504 gateway timeouts",
+        "parameters": {"payment_latency_multiplier": 4.2, "payment_failure_rate": 0.45},
+    },
+    IncidentScenario.TRAFFIC_SPIKE: {
+        "name": "Flash Traffic Volume Surge",
+        "description": "Workflow arrival rate multiplied by 5x, causing queue buildup and client timeouts across all services.",
+        "severity": Severity.HIGH,
+        "affected_services": [
+            "auth-service",
+            "customer-service",
+            "inventory-service",
+            "pricing-service",
+            "payment-service",
+            "order-service",
+            "notification-service",
+        ],
+        "ground_truth_root_cause": "Flash traffic volume surge exceeding upstream concurrency capacity limits",
+        "parameters": {"arrival_rate_multiplier": 5.0, "queue_delay_factor": 3.0},
+    },
+    IncidentScenario.SERVICE_FAILURE: {
+        "name": "Inventory Service Hard Crash",
+        "description": "Inventory service experienced complete failure with a 95% error rate, short-circuiting downstream workflows.",
+        "severity": Severity.CRITICAL,
+        "affected_services": ["inventory-service", "order-service"],
+        "ground_truth_root_cause": "Inventory Service out-of-memory crash leading to unhandled 500 internal server errors",
+        "parameters": {"target_service": "inventory-service", "failure_rate_override": 0.95},
+    },
+    IncidentScenario.NETWORK_LATENCY: {
+        "name": "Cross-Zone Network Packet Loss",
+        "description": "Network transit latency increased by 180ms across all inter-service RPC invocations.",
+        "severity": Severity.MEDIUM,
+        "affected_services": [
+            "auth-service",
+            "customer-service",
+            "database-service",
+            "inventory-service",
+            "pricing-service",
+            "payment-service",
+            "order-service",
+            "notification-service",
+        ],
+        "ground_truth_root_cause": "Inter-service overlay network packet loss and cross-zone routing delay",
+        "parameters": {"extra_network_delay_ms": 180.0},
+    },
+    IncidentScenario.RETRY_STORM: {
+        "name": "Cascading Retry Storm & Thundering Herd",
+        "description": "Initial transient payment errors triggered concurrent retries, amplifying load and driving failure rate to 70%.",
+        "severity": Severity.CRITICAL,
+        "affected_services": ["payment-service", "inventory-service", "database-service"],
+        "ground_truth_root_cause": "Aggressive client retry loops saturating degraded payment and database resources without circuit breaking",
+        "parameters": {"retry_amplification_multiplier": 2.5, "payment_failure_rate": 0.60},
+    },
+    IncidentScenario.CASCADING_FAILURE: {
+        "name": "Multi-Tier Cascading Service Collapse",
+        "description": "Database latency doubled, causing payment timeouts which backed up order-service worker queues until cascade failure.",
+        "severity": Severity.CRITICAL,
+        "affected_services": [
+            "database-service",
+            "inventory-service",
+            "payment-service",
+            "order-service",
+        ],
+        "ground_truth_root_cause": "Database lock contention cascading into payment authorization timeout and order queue exhaustion",
+        "parameters": {
+            "db_latency_multiplier": 4.0,
+            "payment_failure_rate": 0.50,
+            "order_queue_choke": True,
+        },
+    },
+}
+
 
 class ServiceDegradationModifier:
     """Active degradation parameters applied to a service during an incident."""

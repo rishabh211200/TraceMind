@@ -46,6 +46,9 @@ class AsyncTestSession:
     def add_all(self, objs: list[Any]) -> None:
         self._sync.add_all(objs)
 
+    async def delete(self, obj: Any) -> None:
+        self._sync.delete(obj)
+
     async def close(self) -> None:
         self._sync.close()
 
