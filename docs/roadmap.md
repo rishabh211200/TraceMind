@@ -56,13 +56,16 @@ This document outlines the phased milestone execution plan for TraceMind.
 ---
 
 ## Milestone 4: Interactive Frontend Dashboard
-* **Objective**: Build developer-grade React dashboard for telemetry and workflow visualization.
+* **Objective**: Build developer-grade React dashboard for telemetry, graph topology, trace waterfall timelines, and live simulation controls.
 * **Deliverables**:
-  - System Overview KPI dashboard.
-  - Workflow Explorer with React Flow graph visualizer.
-  - Span waterfall Gantt chart for execution traces.
-  - Chaos injection control console.
-* **Acceptance**: End-to-end user journey visualizing traces and workflow topology.
+  - System Overview & Operations KPI dashboard (`OverviewView.tsx`) consuming single-pass telemetry summaries and incident feeds.
+  - Interactive Service Dependency Topology graph visualizer (`TopologyView.tsx`) using `@xyflow/react` with clickable Service Inspector and live tuning editor.
+  - Workflow DAG Explorer (`WorkflowsView.tsx`) visualizing topological step graphs, execution duration distributions (P50/P95), and execution feeds.
+  - Execution Explorer & Distributed Trace Waterfall viewer (`ExecutionsView.tsx`) featuring Gantt timelines, span indentation, and SpanDetailDrawer.
+  - Microservice Observability console (`ServicesView.tsx`) with database-side latency percentiles (P50..P99), error rates, and live capacity tuning.
+  - TraceSim Chaos Workbench & Simulation Console (`SimulatorView.tsx`) with 7 scenario presets, synthetic trace generator, and targeted chaos injection.
+  - Typed API client layer (`frontend/src/api/`) with RFC 7807 problem details error handling and dark-mode design system.
+* **Status**: Completed
 
 ---
 
