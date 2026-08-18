@@ -279,10 +279,48 @@ Simulation with DB Persist 20 WFs (POST /generate)      |   145.78  |   188.05  
 * **Type Safety**: **Mypy clean (0 errors)** across 75 source files.
 * **Linter & Formatter**: **Ruff clean** across 93 source files.
 
-### 5. Recommendation for Milestone 4 (Interactive Frontend Dashboard)
-With Milestone 3 formally completed, all REST API contracts, graph topology structures (`/api/v1/services/topology`), trace trees (`/api/v1/executions/{id}/tree`), and chaos injection controls (`/api/v1/simulator/inject-chaos`) are fully ready to support:
-* React Flow graph visualizer for workflow and system dependency topology.
-* Waterfall Gantt chart for trace span execution timelines.
-* Real-time KPI summary widgets and chaos injection control console.
+### 5. Milestone 4 Transition
+With Milestone 3 formally completed, all REST API contracts, graph topology structures (`/api/v1/services/topology`), trace trees (`/api/v1/executions/{id}/tree`), and chaos injection controls (`/api/v1/simulator/inject-chaos`) were handed off to support the developer dashboard.
+
+---
+
+## Milestone 4: Interactive Frontend Dashboard
+
+* **Status**: Completed
+* **Branch**: `feat/frontend-dashboard`
+* **Objective**: Build a high-performance, developer-grade React dashboard providing interactive telemetry visualization, React Flow service dependency and workflow DAG graphs, distributed trace Gantt waterfalls, microservice health drilldowns, and live chaos injection controls.
+
+### 1. Architectural Decisions
+1. **100% Backend API Fidelity**: Consumes the existing FastAPI endpoints directly via Vite proxy (`/api -> http://localhost:8000`), with zero mock schemas or redundant state stores.
+2. **On-Demand Data Fetching**: Prohibits continuous background polling; uses on-demand view loading, explicit user refresh actions, and post-mutation invalidation.
+3. **GPU-Accelerated Graph Visualizations**: Adopted `@xyflow/react` (React Flow) for rendering the 12-node service dependency topology graph and workflow DAGs with custom HTML nodes, edge type color-coding, and interactive inspector drawers.
+4. **Zero-Dependency Trace Gantt Waterfall**: Implemented a custom pure SVG/CSS flex Gantt chart for sub-millisecond timeline rendering of hierarchical parent-child spans without heavy charting bundle overhead.
+5. **RFC 7807 Error Integration**: Typed fetch client (`frontend/src/api/client.ts`) intercepts Problem Details error shapes (`{ title, status, detail, error_code, invalid_params }`) and surfaces user-friendly alerts with retry actions.
+
+### 2. Components Implemented
+
+#### Typed API Client & Domain Models (`frontend/src/`)
+* `types/`: `api.ts`, `service.ts`, `workflow.ts`, `execution.ts`, `incident.ts`, `simulator.ts` matching backend Pydantic schemas.
+* `api/`: `client.ts`, `services.ts`, `workflows.ts`, `executions.ts`, `incidents.ts`, `simulator.ts`.
+
+#### Reusable UI & Visualizer Components (`frontend/src/components/`)
+* `common/`: `Header.tsx` (navigation tabs & live API pulse), `StatCard.tsx`, `Badge.tsx`, `LoadingSkeleton.tsx`, `ErrorAlert.tsx`, `EmptyState.tsx`.
+* `graphs/`: `TopologyGraph.tsx` (React Flow service topology), `WorkflowDag.tsx` (React Flow step graph).
+* `waterfall/`: `TraceWaterfall.tsx` (Gantt waterfall with collapsible spans), `SpanDetailDrawer.tsx` (slide-out span inspector).
+
+#### Core Dashboard Views (`frontend/src/views/`)
+* `OverviewView.tsx`: System-wide telemetry KPIs, service health summary table, active chaos incidents feed, and recent executions.
+* `TopologyView.tsx`: Interactive service dependency map with clickable Service Inspector drawer and live tuning configuration editor (`PUT /api/v1/services/{name}`).
+* `WorkflowsView.tsx`: Workflow selector, DAG visualizer, duration distribution metrics (P50/P95), and workflow execution feed.
+* `ExecutionsView.tsx`: Multi-column execution search (status, incident toggle, duration), execution metadata, and hierarchical Trace Gantt Waterfall visualizer.
+* `ServicesView.tsx`: Microservice registry, database-side latency percentiles (P50..P99), reliability breakdown, and live concurrency tuning form.
+* `SimulatorView.tsx`: 7 causal chaos scenario catalog cards, synthetic trace generator, targeted chaos injection workbench, and real-time execution results banner.
+
+### 3. Verification & Quality Results
+
+* **TypeScript Compilation**: Clean (`npm run type-check` / `tsc --noEmit` -> **0 errors**).
+* **Production Build**: Clean bundle in **3.28s** (`npm run build` / `vite build`).
+* **Backend Regression Suite**: **48 / 48 tests passing** in **3.02s** (`pytest -p no:cacheprovider tests/ -v`).
+* **Backend Static Analysis**: **0 errors** across 75 source files (Mypy) / 94 files (Ruff).
 
 ---
