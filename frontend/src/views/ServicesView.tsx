@@ -1,10 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { servicesApi } from '../api/services';
-import {
-  ServiceHealth,
-  ServiceLatencyStats,
-  ServiceProfile,
-} from '../types/service';
+import { ServiceProfile } from '../types/service';
 import { StatCard } from '../components/common/StatCard';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { SkeletonCard } from '../components/common/LoadingSkeleton';
@@ -30,8 +26,8 @@ export const ServicesView: React.FC<ServicesViewProps> = ({ initialServiceName }
     initialServiceName || 'payment-service'
   );
   const [activeProfile, setActiveProfile] = useState<ServiceProfile | null>(null);
-  const [latencyStats, setLatencyStats] = useState<ServiceLatencyStats | null>(null);
-  const [healthStats, setHealthStats] = useState<ServiceHealth | null>(null);
+  const [latencyStats, setLatencyStats] = useState<any | null>(null);
+  const [healthStats, setHealthStats] = useState<any | null>(null);
 
   // Form Edit State
   const [capacity, setCapacity] = useState<number>(200);
@@ -115,11 +111,20 @@ export const ServicesView: React.FC<ServicesViewProps> = ({ initialServiceName }
     }
   };
 
-  const getServiceIcon = (type: string) => {
+  const getServiceIcon = (type: string = '') => {
     if (type.includes('database')) return <Database className="h-4 w-4 text-amber-400" />;
     if (type.includes('cache')) return <Zap className="h-4 w-4 text-purple-400" />;
     return <Server className="h-4 w-4 text-emerald-400" />;
   };
+
+  const p50Val = latencyStats?.median_p50_latency_ms ?? latencyStats?.p50_latency_ms;
+  const p95Val = latencyStats?.p95_latency_ms;
+  const p90Val = latencyStats?.p90_latency_ms;
+  const p99Val = latencyStats?.p99_latency_ms;
+  const minVal = latencyStats?.min_latency_ms;
+  const maxVal = latencyStats?.max_latency_ms;
+  const meanVal = latencyStats?.mean_latency_ms;
+  const errRateVal = healthStats?.failure_rate_percent ?? healthStats?.error_rate_percent ?? (healthStats?.error_rate !== undefined ? healthStats.error_rate * 100 : 0);
 
   return (
     <div className="space-y-6">
@@ -222,25 +227,25 @@ export const ServicesView: React.FC<ServicesViewProps> = ({ initialServiceName }
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <StatCard
                 title="P50 Median Latency"
-                value={`${latencyStats?.median_p50_latency_ms?.toFixed(1) || '-'} ms`}
-                subtitle={`Mean: ${latencyStats?.mean_latency_ms?.toFixed(1) || '-'} ms`}
+                value={p50Val !== undefined && p50Val !== null ? `${Number(p50Val).toFixed(1)} ms` : '-'}
+                subtitle={`Mean: ${meanVal !== undefined && meanVal !== null ? `${Number(meanVal).toFixed(1)} ms` : '-'}`}
                 icon={Clock}
                 iconColor="text-emerald-400"
               />
               <StatCard
                 title="P95 Tail Latency"
-                value={`${latencyStats?.p95_latency_ms?.toFixed(1) || '-'} ms`}
-                subtitle={`P99: ${latencyStats?.p99_latency_ms?.toFixed(1) || '-'} ms`}
+                value={p95Val !== undefined && p95Val !== null ? `${Number(p95Val).toFixed(1)} ms` : '-'}
+                subtitle={`P99: ${p99Val !== undefined && p99Val !== null ? `${Number(p99Val).toFixed(1)} ms` : '-'}`}
                 icon={Activity}
                 iconColor="text-purple-400"
               />
               <StatCard
                 title="Error / Failure Rate"
-                value={`${healthStats?.failure_rate_percent?.toFixed(2) || '0.00'}%`}
-                subtitle={`${healthStats?.failed_events || 0} failed / ${healthStats?.total_events || 0} total`}
+                value={`${Number(errRateVal || 0).toFixed(2)}%`}
+                subtitle={`${healthStats?.failed_events || healthStats?.failure_count || healthStats?.error_count || 0} failed / ${healthStats?.total_events || healthStats?.total_calls || 0} total`}
                 icon={AlertTriangle}
                 iconColor={
-                  (healthStats?.failure_rate_percent || 0) > 5 ? 'text-rose-400' : 'text-amber-400'
+                  Number(errRateVal || 0) > 5 ? 'text-rose-400' : 'text-amber-400'
                 }
               />
             </div>
@@ -264,27 +269,39 @@ export const ServicesView: React.FC<ServicesViewProps> = ({ initialServiceName }
               <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
                 <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-500 text-[10px] block">MIN</span>
-                  <span className="text-slate-200 font-bold text-sm">{latencyStats.min_latency_ms.toFixed(1)}ms</span>
+                  <span className="text-slate-200 font-bold text-sm">
+                    {minVal !== undefined && minVal !== null ? `${Number(minVal).toFixed(1)}ms` : '-'}
+                  </span>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-500 text-[10px] block">P50 (MEDIAN)</span>
-                  <span className="text-emerald-400 font-bold text-sm">{latencyStats.median_p50_latency_ms.toFixed(1)}ms</span>
+                  <span className="text-emerald-400 font-bold text-sm">
+                    {p50Val !== undefined && p50Val !== null ? `${Number(p50Val).toFixed(1)}ms` : '-'}
+                  </span>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-500 text-[10px] block">P90</span>
-                  <span className="text-sky-400 font-bold text-sm">{latencyStats.p90_latency_ms.toFixed(1)}ms</span>
+                  <span className="text-sky-400 font-bold text-sm">
+                    {p90Val !== undefined && p90Val !== null ? `${Number(p90Val).toFixed(1)}ms` : '-'}
+                  </span>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-500 text-[10px] block">P95</span>
-                  <span className="text-amber-400 font-bold text-sm">{latencyStats.p95_latency_ms.toFixed(1)}ms</span>
+                  <span className="text-amber-400 font-bold text-sm">
+                    {p95Val !== undefined && p95Val !== null ? `${Number(p95Val).toFixed(1)}ms` : '-'}
+                  </span>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-500 text-[10px] block">P99</span>
-                  <span className="text-purple-400 font-bold text-sm">{latencyStats.p99_latency_ms.toFixed(1)}ms</span>
+                  <span className="text-purple-400 font-bold text-sm">
+                    {p99Val !== undefined && p99Val !== null ? `${Number(p99Val).toFixed(1)}ms` : '-'}
+                  </span>
                 </div>
                 <div className="p-3 rounded-lg bg-slate-950/70 border border-slate-800">
                   <span className="text-slate-500 text-[10px] block">MAX</span>
-                  <span className="text-rose-400 font-bold text-sm">{latencyStats.max_latency_ms.toFixed(1)}ms</span>
+                  <span className="text-rose-400 font-bold text-sm">
+                    {maxVal !== undefined && maxVal !== null ? `${Number(maxVal).toFixed(1)}ms` : '-'}
+                  </span>
                 </div>
               </div>
             ) : (

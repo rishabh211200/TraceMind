@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { servicesApi } from '../api/services';
 import {
-  ServiceHealth,
-  ServiceLatencyStats,
   ServiceProfile,
   ServiceTopology,
 } from '../types/service';
@@ -29,8 +27,8 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
   const [topology, setTopology] = useState<ServiceTopology | null>(null);
   const [selectedService, setSelectedService] = useState<string | null>(initialServiceName || null);
   const [serviceProfile, setServiceProfile] = useState<ServiceProfile | null>(null);
-  const [latencyStats, setLatencyStats] = useState<ServiceLatencyStats | null>(null);
-  const [healthStats, setHealthStats] = useState<ServiceHealth | null>(null);
+  const [latencyStats, setLatencyStats] = useState<any | null>(null);
+  const [healthStats, setHealthStats] = useState<any | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [inspectorLoading, setInspectorLoading] = useState<boolean>(false);
@@ -50,7 +48,7 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
       const data = await servicesApi.getTopology();
       setTopology(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load system topology');
+      setError(err instanceof Error ? err.message : 'Failed to load topology');
     } finally {
       setLoading(false);
     }
@@ -60,17 +58,16 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
     fetchTopology();
   }, [fetchTopology]);
 
-  // Load service profile & metrics when a node is clicked
-  const loadServiceDetails = useCallback(async (name: string) => {
-    setSelectedService(name);
+  const loadServiceDetails = useCallback(async (serviceName: string) => {
+    setSelectedService(serviceName);
     setInspectorLoading(true);
-    setIsEditing(false);
     setSaveSuccess(false);
+    setIsEditing(false);
     try {
       const [profile, latency, health] = await Promise.all([
-        servicesApi.getService(name).catch(() => null),
-        servicesApi.getLatencyStats(name).catch(() => null),
-        servicesApi.getHealth(name).catch(() => null),
+        servicesApi.getService(serviceName).catch(() => null),
+        servicesApi.getLatencyStats(serviceName).catch(() => null),
+        servicesApi.getHealth(serviceName).catch(() => null),
       ]);
       setServiceProfile(profile);
       setLatencyStats(latency);
@@ -81,8 +78,8 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
         setEditTimeout(profile.timeout_ms || 2000);
         setEditRetries(profile.max_retries || 2);
       }
-    } catch {
-      // Ignored
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to inspect service');
     } finally {
       setInspectorLoading(false);
     }
@@ -94,7 +91,8 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
     }
   }, [initialServiceName, loadServiceDetails]);
 
-  const handleSaveConfig = async () => {
+  const handleSaveConfig = async (e: React.FormEvent) => {
+    e.preventDefault();
     if (!selectedService) return;
     try {
       const updated = await servicesApi.updateService(selectedService, {
@@ -103,17 +101,31 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
         max_retries: editRetries,
       });
       setServiceProfile(updated);
-      setIsEditing(false);
       setSaveSuccess(true);
+      setIsEditing(false);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update service');
+      setError(err instanceof Error ? err.message : 'Failed to save config');
     }
   };
 
+  const p50Val = latencyStats?.median_p50_latency_ms ?? latencyStats?.p50_latency_ms;
+  const p90Val = latencyStats?.p90_latency_ms;
+  const p95Val = latencyStats?.p95_latency_ms;
+  const p99Val = latencyStats?.p99_latency_ms;
+
+  const errRate =
+    healthStats?.failure_rate_percent ??
+    healthStats?.error_rate_percent ??
+    (healthStats?.error_rate !== undefined ? healthStats.error_rate * 100 : 0);
+  const totalEventsCount =
+    healthStats?.total_events ?? healthStats?.total_calls ?? 0;
+  const retryCount =
+    healthStats?.retry_events ?? healthStats?.retry_count ?? 0;
+
   return (
     <div className="space-y-6">
-      {/* View Header */}
+      {/* Header Bar */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-100 tracking-tight font-mono">
@@ -207,10 +219,10 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
                         <Clock className="h-3.5 w-3.5 text-sky-400" />
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-[11px]">
-                        <div>P50: <strong className="text-slate-100">{latencyStats.median_p50_latency_ms?.toFixed(1)}ms</strong></div>
-                        <div>P90: <strong className="text-slate-100">{latencyStats.p90_latency_ms?.toFixed(1)}ms</strong></div>
-                        <div>P95: <strong className="text-slate-100">{latencyStats.p95_latency_ms?.toFixed(1)}ms</strong></div>
-                        <div>P99: <strong className="text-slate-100">{latencyStats.p99_latency_ms?.toFixed(1)}ms</strong></div>
+                        <div>P50: <strong className="text-slate-100">{p50Val !== undefined && p50Val !== null ? `${Number(p50Val).toFixed(1)}ms` : '-'}</strong></div>
+                        <div>P90: <strong className="text-slate-100">{p90Val !== undefined && p90Val !== null ? `${Number(p90Val).toFixed(1)}ms` : '-'}</strong></div>
+                        <div>P95: <strong className="text-slate-100">{p95Val !== undefined && p95Val !== null ? `${Number(p95Val).toFixed(1)}ms` : '-'}</strong></div>
+                        <div>P99: <strong className="text-slate-100">{p99Val !== undefined && p99Val !== null ? `${Number(p99Val).toFixed(1)}ms` : '-'}</strong></div>
                       </div>
                     </div>
                   )}
@@ -225,17 +237,17 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
                       <div className="space-y-1 text-[11px]">
                         <div className="flex justify-between">
                           <span className="text-slate-400">Total Events:</span>
-                          <span className="text-slate-100">{healthStats.total_events?.toLocaleString()}</span>
+                          <span className="text-slate-100">{totalEventsCount.toLocaleString()}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Error Rate:</span>
-                          <span className={healthStats.failure_rate_percent > 5 ? 'text-rose-400 font-bold' : 'text-slate-100'}>
-                            {healthStats.failure_rate_percent?.toFixed(2)}%
+                          <span className={Number(errRate) > 5 ? 'text-rose-400 font-bold' : 'text-slate-100'}>
+                            {Number(errRate).toFixed(2)}%
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-slate-400">Retry Events:</span>
-                          <span className="text-slate-100">{healthStats.retry_events}</span>
+                          <span className="text-slate-100">{retryCount}</span>
                         </div>
                       </div>
                     </div>
@@ -248,7 +260,7 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
                         <span className="text-slate-300 font-semibold">Tuning & Baseline</span>
                         <button
                           onClick={() => setIsEditing(!isEditing)}
-                          className="text-emerald-400 hover:text-emerald-300 transition flex items-center space-x-1 text-[11px]"
+                          className="flex items-center space-x-1 text-emerald-400 hover:text-emerald-300 transition"
                         >
                           <Edit3 className="h-3 w-3" />
                           <span>{isEditing ? 'Cancel' : 'Edit'}</span>
@@ -256,45 +268,46 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
                       </div>
 
                       {isEditing ? (
-                        <div className="space-y-2 pt-1">
+                        <form onSubmit={handleSaveConfig} className="space-y-2.5 pt-1">
                           <div>
-                            <label className="text-[10px] text-slate-400 block">Concurrency Capacity</label>
+                            <label className="text-slate-400 block text-[10px]">Capacity (Req/s)</label>
                             <input
                               type="number"
                               value={editCapacity}
                               onChange={(e) => setEditCapacity(Number(e.target.value))}
-                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 mt-0.5 text-xs font-mono"
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-emerald-500 text-xs"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-slate-400 block">Timeout (ms)</label>
+                            <label className="text-slate-400 block text-[10px]">Timeout (ms)</label>
                             <input
                               type="number"
                               value={editTimeout}
                               onChange={(e) => setEditTimeout(Number(e.target.value))}
-                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 mt-0.5 text-xs font-mono"
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-emerald-500 text-xs"
                             />
                           </div>
                           <div>
-                            <label className="text-[10px] text-slate-400 block">Max Retries</label>
+                            <label className="text-slate-400 block text-[10px]">Max Retries</label>
                             <input
                               type="number"
                               value={editRetries}
                               onChange={(e) => setEditRetries(Number(e.target.value))}
-                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 mt-0.5 text-xs font-mono"
+                              className="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100 focus:outline-none focus:border-emerald-500 text-xs"
                             />
                           </div>
                           <button
-                            onClick={handleSaveConfig}
-                            className="w-full py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold text-xs mt-2 transition"
+                            type="submit"
+                            className="w-full py-1.5 rounded bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold transition mt-2"
                           >
-                            Save Changes
+                            Save Parameters
                           </button>
-                        </div>
+                        </form>
                       ) : (
-                        <div className="text-[11px] text-slate-400 space-y-1">
-                          <div>Timeout: <strong className="text-slate-200">{serviceProfile.timeout_ms}ms</strong></div>
-                          <div>Max Retries: <strong className="text-slate-200">{serviceProfile.max_retries}</strong></div>
+                        <div className="text-[11px] space-y-1 text-slate-400">
+                          <div>Timeout: <strong className="text-slate-200">{serviceProfile.timeout_ms || '-'} ms</strong></div>
+                          <div>Max Retries: <strong className="text-slate-200">{serviceProfile.max_retries || '-'}</strong></div>
+                          <div>Backoff: <strong className="text-slate-200">{serviceProfile.retry_backoff_ms || '-'} ms</strong></div>
                         </div>
                       )}
                     </div>
@@ -303,9 +316,9 @@ export const TopologyView: React.FC<TopologyViewProps> = ({ initialServiceName }
               )}
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center flex-1 text-center text-slate-500 py-12">
-              <Network className="h-8 w-8 text-slate-600 mb-2" />
-              <p className="text-xs">Click any service node in the graph to inspect performance metrics and configuration.</p>
+            <div className="h-full flex flex-col items-center justify-center text-center p-6 text-slate-500 space-y-2">
+              <Network className="h-8 w-8 text-slate-600" />
+              <p className="text-xs">Click on any service node in the graph to inspect its telemetry and adjust parameters.</p>
             </div>
           )}
         </div>

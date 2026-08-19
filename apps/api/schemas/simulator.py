@@ -44,6 +44,10 @@ class SimulationGenerateRequest(BaseModel):
         default=True,
         description="Whether to persist generated executions and spans into PostgreSQL/TimescaleDB",
     )
+    stream_to_kafka: bool = Field(
+        default=False,
+        description="Whether to stream generated trace events live to Kafka topic",
+    )
 
 
 class SimulationGenerateResponse(BaseModel):
@@ -58,6 +62,7 @@ class SimulationGenerateResponse(BaseModel):
     persisted_to_db: bool
     persisted_executions_count: int
     persisted_events_count: int
+    streamed_to_kafka: bool = False
     persistence_wall_time_ms: float | None = None
     summary_statistics: dict[str, Any]
 

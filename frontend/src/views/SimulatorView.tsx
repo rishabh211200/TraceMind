@@ -1,9 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { simulatorApi } from '../api/simulator';
 import {
-  ChaosInjectionResponse,
   ChaosScenarioInfo,
-  SimulationGenerateResponse,
 } from '../types/simulator';
 import { Badge } from '../components/common/Badge';
 import { ErrorAlert } from '../components/common/ErrorAlert';
@@ -33,8 +31,9 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
   const [simSeed, setSimSeed] = useState<number>(42);
   const [simScenario, setSimScenario] = useState<string>('');
   const [simPersist, setSimPersist] = useState<boolean>(true);
+  const [simStreamToKafka, setSimStreamToKafka] = useState<boolean>(false);
   const [simGenerating, setSimGenerating] = useState<boolean>(false);
-  const [simResult, setSimResult] = useState<SimulationGenerateResponse | null>(null);
+  const [simResult, setSimResult] = useState<any | null>(null);
 
   // Chaos Injection Form State
   const [chaosScenario, setChaosScenario] = useState<string>('payment_latency_degradation');
@@ -43,16 +42,17 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
   const [chaosSeed, setChaosSeed] = useState<number>(777);
   const [chaosPersist, setChaosPersist] = useState<boolean>(true);
   const [chaosInjecting, setChaosInjecting] = useState<boolean>(false);
-  const [chaosResult, setChaosResult] = useState<ChaosInjectionResponse | null>(null);
+  const [chaosResult, setChaosResult] = useState<any | null>(null);
 
   const fetchScenarios = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const list = await simulatorApi.listScenarios();
-      setScenarios(list);
-      if (list.length > 0) {
-        setChaosScenario(list[0].scenario_type);
+      const safeList = Array.isArray(list) ? list : [];
+      setScenarios(safeList);
+      if (safeList.length > 0) {
+        setChaosScenario(safeList[0].scenario_type);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load chaos scenarios');
@@ -77,6 +77,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
         seed: simSeed || null,
         incident_scenario: simScenario || null,
         persist_to_db: simPersist,
+        stream_to_kafka: simStreamToKafka,
       });
       setSimResult(res);
     } catch (err) {
@@ -109,10 +110,10 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
 
   return (
     <div className="space-y-6">
-      {/* Header Bar */}
+      {/* Header */}
       <div>
         <h2 className="text-xl font-bold text-slate-100 tracking-tight font-mono">
-          TraceSim Chaos Workbench & Simulation Console
+          TraceSim Workbench & Chaos Engineering Console
         </h2>
         <p className="text-xs text-slate-400 mt-0.5">
           Generate deterministic synthetic distributed traces, inject targeted causal chaos experiments, and persist ground-truth incidents.
@@ -139,11 +140,12 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
               </button>
             )}
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-[11px]">
-            <div>Workflows: <strong className="text-slate-100">{simResult.executions_generated}</strong></div>
-            <div>Spans: <strong className="text-slate-100">{simResult.events_generated}</strong></div>
-            <div>Error Rate: <strong className="text-slate-100">{simResult.summary_statistics.error_rate_percent.toFixed(1)}%</strong></div>
-            <div>Wall Time: <strong className="text-slate-100">{simResult.generation_wall_time_ms.toFixed(1)}ms</strong></div>
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-1 text-[11px]">
+            <div>Workflows: <strong className="text-slate-100">{simResult.executions_generated ?? simResult.workflows_requested ?? 0}</strong></div>
+            <div>Spans: <strong className="text-slate-100">{simResult.events_generated ?? 0}</strong></div>
+            <div>Error Rate: <strong className="text-slate-100">{Number(simResult.summary_statistics?.error_rate_percent ?? 0).toFixed(1)}%</strong></div>
+            <div>Wall Time: <strong className="text-slate-100">{Number(simResult.generation_wall_time_ms ?? 0).toFixed(1)}ms</strong></div>
+            <div>Stream to Kafka: <strong className={simResult.streamed_to_kafka ? "text-purple-400 font-bold" : "text-slate-400"}>{simResult.streamed_to_kafka ? "Active" : "Off"}</strong></div>
           </div>
         </div>
       )}
@@ -166,78 +168,81 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
             )}
           </div>
           <p className="text-[11px] text-slate-300">
-            <strong>Root Cause:</strong> {chaosResult.ground_truth_root_cause}
+            <strong>Root Cause:</strong> {chaosResult.ground_truth_root_cause || 'Causal fault injection'}
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1 text-[11px]">
-            <div>Total Runs: <strong className="text-slate-100">{chaosResult.total_executions}</strong></div>
-            <div>Affected Runs: <strong className="text-rose-400 font-bold">{chaosResult.executions_affected}</strong></div>
-            <div>Error Rate: <strong className="text-slate-100">{chaosResult.error_rate_percent.toFixed(1)}%</strong></div>
-            <div>Mean Latency: <strong className="text-slate-100">{chaosResult.mean_latency_ms.toFixed(1)}ms</strong></div>
+            <div>Total Runs: <strong className="text-slate-100">{chaosResult.total_executions ?? 0}</strong></div>
+            <div>Affected Runs: <strong className="text-rose-400 font-bold">{chaosResult.executions_affected ?? 0}</strong></div>
+            <div>Error Rate: <strong className="text-slate-100">{Number(chaosResult.error_rate_percent ?? 0).toFixed(1)}%</strong></div>
+            <div>Mean Latency: <strong className="text-slate-100">{Number(chaosResult.mean_latency_ms ?? 0).toFixed(1)}ms</strong></div>
           </div>
         </div>
       )}
 
-      {/* Control Workbench Grid */}
+      {/* Simulator Control Forms */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Panel A: Synthetic Trace Generator */}
+        {/* Panel A: Synthetic Workload Generator */}
         <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-5 backdrop-blur-sm shadow-xl font-mono text-xs space-y-4">
           <div className="flex items-center space-x-2 border-b border-slate-800 pb-3">
             <Zap className="h-4 w-4 text-emerald-400" />
             <h3 className="font-bold text-slate-100 text-sm">
-              Synthetic Workload Trace Generator
+              Synthetic Workload Generator
             </h3>
           </div>
 
           <form onSubmit={handleGenerate} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-slate-400 block text-[11px] mb-1">Workflow Count</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="1000"
-                  value={simWorkflows}
-                  onChange={(e) => setSimWorkflows(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100"
-                />
-              </div>
-              <div>
-                <label className="text-slate-400 block text-[11px] mb-1">Arrival Rate (RPS)</label>
-                <input
-                  type="number"
-                  step="1"
-                  value={simRps}
-                  onChange={(e) => setSimRps(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100"
-                />
-              </div>
+            <div>
+              <label className="text-slate-400 block text-[11px] mb-1">
+                Workflow Batch Count (1..1000)
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="1000"
+                value={simWorkflows}
+                onChange={(e) => setSimWorkflows(Number(e.target.value))}
+                className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-slate-400 block text-[11px] mb-1">Random Seed</label>
+                <label className="text-slate-400 block text-[11px] mb-1">Arrival Rate (Req/s)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={simRps}
+                  onChange={(e) => setSimRps(Number(e.target.value))}
+                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+              <div>
+                <label className="text-slate-400 block text-[11px] mb-1">Deterministic Seed</label>
                 <input
                   type="number"
                   value={simSeed}
                   onChange={(e) => setSimSeed(Number(e.target.value))}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100"
+                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
                 />
               </div>
-              <div>
-                <label className="text-slate-400 block text-[11px] mb-1">Scenario (Optional)</label>
-                <select
-                  value={simScenario}
-                  onChange={(e) => setSimScenario(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100"
-                >
-                  <option value="">None (Baseline)</option>
-                  {scenarios.map((s) => (
-                    <option key={s.scenario_type} value={s.scenario_type}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+            </div>
+
+            <div>
+              <label className="text-slate-400 block text-[11px] mb-1">
+                Chaos Scenario Preset (Optional)
+              </label>
+              <select
+                value={simScenario}
+                onChange={(e) => setSimScenario(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
+              >
+                <option value="">None (Nominal Baseline Operations)</option>
+                {scenarios.map((s) => (
+                  <option key={s.scenario_type} value={s.scenario_type}>
+                    {s.name} ({s.severity})
+                  </option>
+                ))}
+              </select>
             </div>
 
             <label className="flex items-center space-x-2 pt-1 cursor-pointer select-none text-slate-300">
@@ -248,6 +253,16 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
                 className="rounded bg-slate-950 border-slate-700 text-emerald-500"
               />
               <span className="text-[11px]">Persist generated traces to PostgreSQL database</span>
+            </label>
+
+            <label className="flex items-center space-x-2 pt-0.5 cursor-pointer select-none text-slate-300">
+              <input
+                type="checkbox"
+                checked={simStreamToKafka}
+                onChange={(e) => setSimStreamToKafka(e.target.checked)}
+                className="rounded bg-slate-950 border-slate-700 text-purple-500"
+              />
+              <span className="text-[11px]">Stream trace events live to Kafka (topic: <code className="text-purple-400">tracemind.events.raw</code>)</span>
             </label>
 
             <button
@@ -370,7 +385,7 @@ export const SimulatorView: React.FC<SimulatorViewProps> = ({ onNavigateExecutio
                 </div>
                 <p className="text-[11px] text-slate-400 line-clamp-2">{s.description}</p>
                 <div className="pt-1.5 border-t border-slate-800 text-[10px] text-slate-500 space-y-1">
-                  <div>Affected: <strong className="text-slate-300">{s.affected_services.join(', ')}</strong></div>
+                  <div>Affected: <strong className="text-slate-300">{Array.isArray(s.affected_services) ? s.affected_services.join(', ') : s.affected_services}</strong></div>
                   <div>Root Cause: <strong className="text-rose-400">{s.ground_truth_root_cause}</strong></div>
                 </div>
               </div>

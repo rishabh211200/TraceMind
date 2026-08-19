@@ -18,6 +18,7 @@ export interface SimulationGenerateRequest {
   seed?: number | null;
   incident_scenario?: string | null;
   persist_to_db?: boolean;
+  stream_to_kafka?: boolean;
 }
 
 export interface SimulationGenerateResponse {
@@ -30,6 +31,7 @@ export interface SimulationGenerateResponse {
   persisted_to_db: boolean;
   persisted_executions_count: number;
   persisted_events_count: number;
+  streamed_to_kafka?: boolean;
   persistence_wall_time_ms?: number | null;
   summary_statistics: {
     completed_count: number;
