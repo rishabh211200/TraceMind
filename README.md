@@ -9,7 +9,7 @@
 [![Type Checked: Mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
 
 ---
-
+ 
 ## 1. Overview
 
 **TraceMind** is an experimental AI and research platform engineered to learn behavioral patterns from distributed system workflow execution traces. In complex multi-service architectures, understanding whether an ongoing workflow will succeed, predicting latency degradations, pinpointing cascading dependency failures, and optimizing routing strategies in real time is a critical operational challenge.
