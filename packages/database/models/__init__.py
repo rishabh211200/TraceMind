@@ -1,5 +1,6 @@
 """Database ORM models package export."""
 
+from packages.database.models.anomaly import AnomalyModel
 from packages.database.models.base import Base, TimestampMixin
 from packages.database.models.incident import IncidentModel
 from packages.database.models.prediction import PredictionModel
@@ -19,4 +20,5 @@ __all__ = [
     "TraceEventModel",
     "IncidentModel",
     "PredictionModel",
+    "AnomalyModel",
 ]

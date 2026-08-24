@@ -1,5 +1,6 @@
 """Database repositories package export."""
 
+from packages.database.repositories.anomaly_repository import AnomalyRepository
 from packages.database.repositories.incident_repository import IncidentRepository
 from packages.database.repositories.prediction_repository import PredictionRepository
 from packages.database.repositories.service_repository import ServiceRepository
@@ -12,4 +13,5 @@ __all__ = [
     "TraceEventRepository",
     "IncidentRepository",
     "PredictionRepository",
+    "AnomalyRepository",
 ]

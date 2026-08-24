@@ -6,6 +6,7 @@ import { WorkflowsView } from './views/WorkflowsView';
 import { ExecutionsView } from './views/ExecutionsView';
 import { ServicesView } from './views/ServicesView';
 import { SimulatorView } from './views/SimulatorView';
+import { AnomaliesView } from './views/AnomaliesView';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
@@ -67,6 +68,10 @@ export const App: React.FC = () => {
 
         {activeTab === 'executions' && (
           <ExecutionsView initialExecutionId={selectedExecutionId} />
+        )}
+
+        {activeTab === 'anomalies' && (
+          <AnomaliesView />
         )}
 
         {activeTab === 'services' && (

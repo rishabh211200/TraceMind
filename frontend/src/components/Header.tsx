@@ -8,6 +8,7 @@ import {
   Server,
   Flame,
   Zap,
+  AlertTriangle,
 } from 'lucide-react';
 
 export type DashboardTab =
@@ -15,6 +16,7 @@ export type DashboardTab =
   | 'topology'
   | 'workflows'
   | 'executions'
+  | 'anomalies'
   | 'services'
   | 'simulator';
 
@@ -34,6 +36,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'topology', label: 'Topology', icon: Network },
     { id: 'workflows', label: 'Workflows', icon: GitBranch },
     { id: 'executions', label: 'Traces', icon: Layers },
+    { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle },
     { id: 'services', label: 'Services', icon: Server },
     { id: 'simulator', label: 'Simulator', icon: Flame },
   ];

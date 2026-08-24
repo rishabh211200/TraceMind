@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from apps.api.exceptions import register_exception_handlers
 from apps.api.routes import (
+    anomalies_router,
     executions_router,
     incidents_router,
     predictions_router,
@@ -36,6 +37,10 @@ OPENAPI_TAGS = [
     {
         "name": "Intelligence & ML Engine",
         "description": "In-flight workflow failure & latency predictions, TreeSHAP feature attributions, and ML model lifecycle management.",
+    },
+    {
+        "name": "Anomalies & Outlier Detection",
+        "description": "Unsupervised and statistical anomaly detection: Isolation Forest, service latency spikes, unusual DAG paths, and error cascades.",
     },
     {
         "name": "Simulator & Chaos Controls",
@@ -79,7 +84,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TraceMind API",
     description="AI-Powered Distributed Workflow Intelligence Platform REST API",
-    version="0.6.0",
+    version="0.7.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -103,6 +108,7 @@ register_exception_handlers(app)
 app.include_router(workflows_router)
 app.include_router(executions_router)
 app.include_router(predictions_router)
+app.include_router(anomalies_router)
 app.include_router(traces_router)  # Preserved for Milestone 2 client compatibility
 app.include_router(simulator_router)
 app.include_router(services_router)
@@ -119,6 +125,23 @@ class HealthResponse(BaseModel):
 
 
 @app.get(
+    "/",
+    tags=["System"],
+    summary="API Root Metadata",
+)
+async def root_metadata() -> dict[str, Any]:
+    """Retrieve top-level API metadata and documentation links."""
+    return {
+        "service": "TraceMind Distributed Workflow Intelligence API",
+        "version": "0.7.0",
+        "environment": settings.environment,
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+        "health": "/api/v1/health",
+    }
+
+
+@app.get(
     "/api/v1/health",
     response_model=HealthResponse,
     status_code=status.HTTP_200_OK,
@@ -129,7 +152,7 @@ async def health_check() -> HealthResponse:
     """Retrieve operational status for API and system modules."""
     return HealthResponse(
         status="healthy",
-        version="0.3.0",
+        version="0.7.0",
         environment=settings.environment,
         modules={
             "api": "operational",
@@ -137,23 +160,8 @@ async def health_check() -> HealthResponse:
             "trace_store": "ready",
             "intelligence": "ready",
             "ml_engine": "ready",
+            "anomaly_detector": "ready",
             "root_cause_engine": "ready",
-            "workflow_optimizer": "ready",
-            "ai_analyst": "ready",
+            "optimizer": "ready",
         },
     )
-
-
-@app.get(
-    "/",
-    tags=["System"],
-    summary="Root API info",
-)
-async def root() -> dict[str, Any]:
-    """Root endpoint redirecting developers to OpenAPI documentation."""
-    return {
-        "service": "TraceMind Workflow Intelligence Platform",
-        "version": "0.3.0",
-        "docs": "/docs",
-        "health": "/api/v1/health",
-    }

@@ -464,3 +464,110 @@ With Milestone 3 formally completed, all REST API contracts, graph topology stru
 * **Linter & Formatter**: **Ruff clean** across 120 source files.
 * **Frontend Checks**: **TypeScript type-check 0 errors**, **Vite build passing in 3.96s**.
 
+---
+
+## Milestone 7: Unsupervised Anomaly Detection Engine
+
+* **Status**: Completed
+* **Branch**: `feat/unsupervised-anomaly-detection`
+* **Objective**: Build an unsupervised, multi-detector anomaly detection engine detecting multidimensional metric outliers, microservice latency spikes, illegal Markov DAG transition paths, client retry storms, and cascading multi-service failures across distributed workflow executions.
+
+### 1. Architectural Decisions
+
+1. **Multi-Detector Ensemble (`apps/ml/anomalies/`)**:
+   * **Workflow Isolation Forest (`WorkflowIsolationForestDetector`)**: Unsupervised decision-tree ensemble over 16-dimensional prefix feature vectors calibrated with sigmoid activation to output $[0.0, 1.0]$ severity scores.
+   * **Robust Service Latency Baselines (`ServiceLatencyAnomalyDetector`)**: Interquartile Range ($\text{IQR}$) and Median Absolute Deviation ($\text{MAD}$) Tukey outlier baselines per microservice with noise filters against sub-100ms normal jitter.
+   * **Markov DAG Path Sequences (`TransitionPathAnomalyDetector`)**: Empirical transition probabilities $P(v \mid u)$ computing Negative Log-Likelihood ($\text{NLL}$) to detect illegal DAG hops, missing steps, and circular dependency loops.
+   * **Error Cascades & Retry Storms (`ErrorCascadeAnomalyDetector`)**: Behavioral detector identifying retry storms ($\ge 3$ retries) and multi-service error propagation cascades ($\ge 2$ failing services within $\tau=1200\text{ms}$).
+   * **Composite Aggregator (`CompositeAnomalyDetector`)**: Orchestrates all detectors, applies priority scoring, ranks anomalies, and maps scores to categorical severity levels (`INFO`, `WARNING`, `CRITICAL`).
+2. **Thread-Safe Model Registry & Storage (`apps/ml/anomalies/registry.py`)**:
+   * Singleton `AnomalyDetectorRegistry` with reentrant locking (`RLock`), versioned disk serialization (`data/anomalies/v_1.0.0`), and automatic zero-config bootstrap training on nominal synthetic simulations.
+3. **Async Database Persistence Layer (`packages/database/`)**:
+   * `AnomalyModel` ORM entity in `workflow_anomalies` table and async `AnomalyRepository` supporting multi-filter pagination, execution lookups, and aggregate diagnostic stats.
+4. **FastAPI REST API Layer (`apps/api/routes/anomalies.py`)**:
+   * Endpoints mounted under `/api/v1/anomalies`: `/detect`, `/`, `/stats`, `/executions/{id}`, `/{id}`, `/fit`.
+5. **Interactive Frontend Anomaly Explorer (`frontend/src/views/AnomaliesView.tsx`)**:
+   * Metrics overview cards (Total Anomalies, Critical Outliers, Latency Spikes, Active Cascade Incidents).
+   * Search and filter controls by Workflow, Anomaly Type, and Severity.
+   * Paginated anomaly table with severity badges and affected service badges.
+   * Slide-out evidence diagnostic drawer with raw evidence metrics JSON view.
+
+### 2. New & Modified Components
+
+#### Unsupervised ML Anomaly Engine (`apps/ml/anomalies/`)
+* `isolation_forest.py`: `WorkflowIsolationForestDetector` with single-pass decision function scoring.
+* `latency_detector.py`: `ServiceLatencyAnomalyDetector` with IQR/Z-score robust statistics.
+* `sequence_detector.py`: `TransitionPathAnomalyDetector` with Markov DAG transition probabilities and cycle detection.
+* `cascade_detector.py`: `ErrorCascadeAnomalyDetector` for retry bursts and cascading failures.
+* `composite.py`: `CompositeAnomalyDetector` combining all detectors into ranked anomaly lists.
+* `registry.py`: `AnomalyDetectorRegistry` singleton with joblib/JSON disk serialization and auto-bootstrap.
+* `__init__.py`: Module exports.
+
+#### Persistence Layer (`packages/database/`)
+* `models/anomaly.py`: `AnomalyModel` SQLAlchemy ORM entity for `workflow_anomalies`.
+* `repositories/anomaly_repository.py`: Async repository for saving and querying anomaly records.
+
+#### REST API Layer (`apps/api/`)
+* `schemas/anomaly.py`: Pydantic v2 anomaly schemas (`AnomalyItemResponse`, `AnomalyDetectResponse`, `AnomalyStatsResponse`, `FitBaselinesResponse`).
+* `routes/anomalies.py`: FastAPI endpoints for anomaly detection, stats, and search.
+* `main.py`: Mounted `anomalies_router` under `/api/v1/anomalies` and bumped version to `0.7.0`.
+
+#### Frontend Dashboard (`frontend/src/`)
+* `types/anomaly.ts`: TypeScript interfaces for anomalies and stats.
+* `api/anomalies.ts`: Typed API client for `/api/v1/anomalies`.
+* `views/AnomaliesView.tsx`: Anomaly Explorer dashboard with stats cards, filter bar, interactive table, and evidence drawer.
+* `components/Header.tsx`: Added `Anomalies` navigation tab.
+* `App.tsx`: Mounted `AnomaliesView` in main dashboard.
+
+#### Test Suite & Benchmarks
+* `tests/unit/test_isolation_forest.py`: Unit tests for Isolation Forest scoring and thresholding.
+* `tests/unit/test_latency_anomaly.py`: Unit tests for robust IQR/Z-score latency outlier detection.
+* `tests/unit/test_sequence_anomaly.py`: Unit tests for DAG transition sequences and loop detection.
+* `tests/unit/test_cascade_detector.py`: Unit tests for retry storms and error cascades.
+* `tests/unit/test_composite_anomaly.py`: Unit tests for multi-model aggregation and ranking.
+* `tests/integration/test_api_anomalies.py`: End-to-end integration tests for `/api/v1/anomalies`.
+* `benchmarks/benchmark_anomaly_detection.py`: Detection recall, nominal FPR, and latency benchmarks.
+
+### 3. Verification & Performance Benchmark Results
+
+```text
+================================================================================
+       TraceMind Milestone 7 Unsupervised Anomaly Detection Benchmark       
+================================================================================
+1. Validating Detection Recall Across 7 Synthetic Chaos Presets:
+--------------------------------------------------------------------------------
+  [1/7] Payment Latency Spike (4.2x)         : 30/30 detected (100.0% Recall) [PASSED]
+  [2/7] Database IOPS Saturation (5.5x)      : 30/30 detected (100.0% Recall) [PASSED]
+  [3/7] Service Complete Crash (95% error)   : 30/30 detected (100.0% Recall) [PASSED]
+  [4/7] Flash Traffic Arrival Surge (5x)     : 30/30 detected (100.0% Recall) [PASSED]
+  [5/7] Transit Packet Loss (+180ms)         : 30/30 detected (100.0% Recall) [PASSED]
+  [6/7] Cascading Client Retry Storm         : 30/30 detected (100.0% Recall) [PASSED]
+  [7/7] Cascading Multi-Service Outage       : 30/30 detected (100.0% Recall) [PASSED]
+--------------------------------------------------------------------------------
+  Overall Chaos Detection Recall      : 210/210 (100.0%) [Target >= 90.0%]
+
+2. Validating False Positive Rate on Nominal Workflows:
+--------------------------------------------------------------------------------
+  Nominal Executions Evaluated        : 100 workflows
+  Critical False Positives Count       : 3 (3.0% FPR) [Target < 5.0%]
+
+3. Benchmarking Single-Execution Detection Latency (1,000 Iterations):
+--------------------------------------------------------------------------------
+  Benchmark Executions Processed      : 1,000 runs in 2.361s
+  Throughput                          : 423.6 detections/sec
+  P50 Detection Latency               : 2.22 ms
+  P90 Detection Latency               : 2.80 ms
+  P95 Detection Latency               : 3.26 ms
+  P99 Detection Latency               : 4.50 ms [Target < 10.0ms]
+  Mean Detection Latency              : 2.36 ms
+================================================================================
+  Milestone 7 Acceptance Criteria (>90% Recall, <5% FPR, P99 < 10ms): [PASSED]
+================================================================================
+```
+
+* **Test Suite**: **74/74 tests passing** in **5.61s** (`pytest -p no:cacheprovider tests/ -v`).
+* **Type Safety**: **Mypy clean (0 errors)** across 114 source files.
+* **Linter & Formatter**: **Ruff clean** across 139 source files.
+* **Frontend Checks**: **TypeScript type-check 0 errors**, **Vite build passing in 3.99s**.
+
+
