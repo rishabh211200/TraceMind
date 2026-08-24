@@ -570,4 +570,99 @@ With Milestone 3 formally completed, all REST API contracts, graph topology stru
 * **Linter & Formatter**: **Ruff clean** across 139 source files.
 * **Frontend Checks**: **TypeScript type-check 0 errors**, **Vite build passing in 3.99s**.
 
+---
+
+## Milestone 8: Root Cause Engine & Graph-Based Deterministic Reasoning
+
+**Branch**: `feat/root-cause-engine`  
+**Status**: **COMPLETED**
+
+### 1. Scope & Deliverables
+
+Milestone 8 builds the deterministic, graph-theoretic causal analysis layer that answers *why* incidents occur, isolates the root culprit service/database, reconstructs the causal propagation chain across the DAG, and ranks alternative failure hypotheses with calibrated confidence.
+
+Key capabilities delivered:
+1. **Causal Graph & Upstream Back-Traversal**:
+   * Directed temporal DAG construction ($V$: spans/anomalies/SHAP, $E$: parent-child and temporal transitions).
+   * Upstream back-traversal algorithm navigating backwards from symptom nodes to isolate the root failure origin.
+2. **Deterministic Incident Pattern Matcher**:
+   * Classifies root causes into 7 canonical fault signatures: `DATABASE_IOPS_SATURATION`, `SERVICE_CRASH`, `CASCADING_RETRY_STORM`, `NETWORK_TRANSIT_DELAY`, `FLASH_TRAFFIC_OVERLOAD`, `DEPENDENCY_TIMEOUT`, `SYSTEMIC_LATENCY_DEGRADATION`.
+3. **Multi-Hypothesis Reasoning & Ranking**:
+   * Multi-criteria scoring integrating hard failures ($0.95$), retry storm intensity ($0.92$), latency degradation multipliers ($0.75$), anomaly peak scores, temporal precedence, and TreeSHAP feature attributions.
+   * Multi-hypothesis candidate ranking (`primary_hypothesis` + top 3 `alternative_hypotheses`).
+4. **Database Persistence & Repositories**:
+   * `workflow_root_causes` table with JSON arrays for `causal_path`, `supporting_evidence`, and `alternative_hypotheses`.
+   * Async `RootCauseRepository` supporting CRUD, filtering, pagination, and aggregate stats.
+5. **FastAPI REST Endpoints**:
+   * Mounted under `/api/v1/root-cause` (`POST /analyze`, `GET /executions/{id}`, `GET /`, `GET /stats`, `GET /{id}`).
+6. **Frontend RCA Explorer & Propagation Chain Visualizer**:
+   * `CausalGraphVisualizer.tsx`: Visual horizontal chain with Root Culprit, Cascade, and Symptom nodes.
+   * `RootCauseView.tsx`: Interactive dashboard with metrics cards, filter bar, paginated table, and diagnostic evidence drawer.
+
+### 2. Implementation Summary
+
+#### Backend (`packages/` & `apps/`)
+* `packages/database/models/root_cause.py`: `RootCauseModel` mapping to `workflow_root_causes`.
+* `packages/database/repositories/root_cause_repository.py`: Async repository with stats, filtering, and pagination.
+* `apps/ml/root_cause/causal_graph.py`: `CausalNode`, `CausalGraph`, `CausalGraphBuilder`, `CausalGraphTraverser`.
+* `apps/ml/root_cause/pattern_matcher.py`: `IncidentPatternMatcher` classifying failure categories.
+* `apps/ml/root_cause/engine.py`: `RootCauseEngine` multi-criteria scoring and hypothesis ranker.
+* `apps/api/schemas/root_cause.py`: Pydantic v2 schemas for `/api/v1/root-cause`.
+* `apps/api/routes/root_cause.py`: FastAPI endpoints mounted under `/api/v1/root-cause`.
+* `apps/api/main.py`: Router mounting and version bumped to `0.8.0`.
+
+#### Frontend (`frontend/src/`)
+* `types/rootCause.ts`: TypeScript interfaces for reports, hypotheses, stats.
+* `api/rootCause.ts`: Typed API client for `/api/v1/root-cause`.
+* `components/rca/CausalGraphVisualizer.tsx`: Interactive causal propagation graph component.
+* `views/RootCauseView.tsx`: RCA dashboard view with metrics, table, filters, and diagnostic drawer.
+* `components/Header.tsx`: Added `Root Cause` navigation tab.
+* `App.tsx`: Mounted `RootCauseView`.
+
+#### Test Suite & Benchmarks
+* `tests/unit/test_causal_graph.py`: Unit tests for graph construction and back-traversal.
+* `tests/unit/test_pattern_matcher.py`: Unit tests for pattern classification.
+* `tests/unit/test_root_cause_engine.py`: Unit tests for scoring and hypothesis ranking.
+* `tests/integration/test_api_root_cause.py`: End-to-end integration tests for `/api/v1/root-cause`.
+* `benchmarks/benchmark_root_cause.py`: Attribution accuracy and latency benchmark suite.
+
+### 3. Verification & Performance Benchmark Results
+
+```text
+================================================================================
+       TraceMind Milestone 8 Deterministic Root Cause Engine Benchmark       
+================================================================================
+1. Validating Ground-Truth Root-Cause Attribution Across 7 Chaos Presets:
+--------------------------------------------------------------------------------
+  [1/7] Payment Latency Spike (4.2x)         : 25/25 (100.0% Accuracy) [PASSED]
+  [2/7] Database IOPS Saturation (5.5x)      : 25/25 (100.0% Accuracy) [PASSED]
+  [3/7] Service Crash (95% error)            : 25/25 (100.0% Accuracy) [PASSED]
+  [4/7] Flash Traffic Arrival Surge (5x)     : 25/25 (100.0% Accuracy) [PASSED]
+  [5/7] Transit Packet Loss (+180ms)         : 25/25 (100.0% Accuracy) [PASSED]
+  [6/7] Cascading Client Retry Storm         : 25/25 (100.0% Accuracy) [PASSED]
+  [7/7] Cascading Multi-Service Outage       : 25/25 (100.0% Accuracy) [PASSED]
+--------------------------------------------------------------------------------
+  Overall Root-Cause Attribution Accuracy : 175/175 (100.0%) [Target >= 95.0%]
+
+2. Benchmarking Single-Execution Graph Reasoning Latency (1,000 Iterations):
+--------------------------------------------------------------------------------
+  Benchmark Executions Processed      : 1,000 runs in 0.568s
+  Throughput                          : 1,760.3 diagnoses/sec
+  P50 Diagnosis Latency               : 0.53 ms
+  P90 Diagnosis Latency               : 0.69 ms
+  P95 Diagnosis Latency               : 0.84 ms
+  P99 Diagnosis Latency               : 1.15 ms [Target < 10.0ms]
+  Max Diagnosis Latency               : 1.78 ms
+  Mean Diagnosis Latency              : 0.57 ms
+================================================================================
+  Milestone 8 Acceptance Criteria (>=95% Accuracy, P99 < 10ms): [PASSED]
+================================================================================
+```
+
+* **Test Suite**: **79/79 tests passing** (`pytest -p no:cacheprovider tests/`).
+* **Type Safety**: **Mypy clean (0 errors)** across 126 source files.
+* **Linter & Formatter**: **Ruff clean** across 153 source files.
+* **Frontend Build**: **Vite production build passing in 3.64s** with 0 TypeScript errors.
+
+
 

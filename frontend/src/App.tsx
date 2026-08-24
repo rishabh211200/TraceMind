@@ -7,6 +7,7 @@ import { ExecutionsView } from './views/ExecutionsView';
 import { ServicesView } from './views/ServicesView';
 import { SimulatorView } from './views/SimulatorView';
 import { AnomaliesView } from './views/AnomaliesView';
+import { RootCauseView } from './views/RootCauseView';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
@@ -72,6 +73,10 @@ export const App: React.FC = () => {
 
         {activeTab === 'anomalies' && (
           <AnomaliesView />
+        )}
+
+        {activeTab === 'root_cause' && (
+          <RootCauseView />
         )}
 
         {activeTab === 'services' && (
