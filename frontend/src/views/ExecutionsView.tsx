@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { executionsApi, ExecutionFilterParams } from '../api/executions';
+import { predictionsApi } from '../api/predictions';
+import { Prediction } from '../types/prediction';
 import { TraceWaterfall } from '../components/waterfall/TraceWaterfall';
+import { ShapAttributionDrawer } from '../components/waterfall/ShapAttributionDrawer';
 import { Badge } from '../components/common/Badge';
 import { ErrorAlert } from '../components/common/ErrorAlert';
 import { SkeletonTable } from '../components/common/LoadingSkeleton';
@@ -13,6 +16,7 @@ import {
   ChevronRight,
   Flame,
   X,
+  BrainCircuit,
 } from 'lucide-react';
 
 interface ExecutionsViewProps {
@@ -26,6 +30,8 @@ export const ExecutionsView: React.FC<ExecutionsViewProps> = ({ initialExecution
   );
   const [activeExecution, setActiveExecution] = useState<any | null>(null);
   const [traceTree, setTraceTree] = useState<any | null>(null);
+  const [activePrediction, setActivePrediction] = useState<Prediction | null>(null);
+  const [isShapDrawerOpen, setIsShapDrawerOpen] = useState<boolean>(false);
 
   // Filters
   const [statusFilter, setStatusFilter] = useState<string>('');
@@ -68,19 +74,25 @@ export const ExecutionsView: React.FC<ExecutionsViewProps> = ({ initialExecution
     fetchExecutions();
   }, [fetchExecutions]);
 
-  // Fetch hierarchical trace tree when an execution is selected
-  const loadTraceTree = useCallback(async (id: string) => {
+  // Fetch hierarchical trace tree and ML prediction when an execution is selected
+  const loadTraceTreeAndPrediction = useCallback(async (id: string) => {
     setSelectedExecutionId(id);
     setTreeLoading(true);
     try {
-      const [exec, tree] = await Promise.all([
+      const [exec, tree, preds] = await Promise.all([
         executionsApi.getExecution(id).catch(() => null),
         executionsApi.getExecutionTree(id).catch(() => null),
+        predictionsApi.getExecutionPredictions(id).catch(() => []),
       ]);
       setActiveExecution(exec);
       setTraceTree(tree);
+      if (Array.isArray(preds) && preds.length > 0) {
+        setActivePrediction(preds[preds.length - 1]);
+      } else {
+        setActivePrediction(null);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load trace tree');
+      setError(err instanceof Error ? err.message : 'Failed to load trace details');
     } finally {
       setTreeLoading(false);
     }
@@ -88,9 +100,9 @@ export const ExecutionsView: React.FC<ExecutionsViewProps> = ({ initialExecution
 
   useEffect(() => {
     if (selectedExecutionId) {
-      loadTraceTree(selectedExecutionId);
+      loadTraceTreeAndPrediction(selectedExecutionId);
     }
-  }, [selectedExecutionId, loadTraceTree]);
+  }, [selectedExecutionId, loadTraceTreeAndPrediction]);
 
   const itemsList: any[] = data?.items || data?.executions || (Array.isArray(data) ? data : []);
   const totalCount = data?.pagination?.total_count ?? itemsList.length;
@@ -106,7 +118,7 @@ export const ExecutionsView: React.FC<ExecutionsViewProps> = ({ initialExecution
             Workflow Executions & Trace Waterfall
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Hierarchical span timeline analysis, distributed trace parent-child trees, and causal incident correlation.
+            Hierarchical span timeline analysis, in-flight ML failure predictions, and TreeSHAP explainability.
           </p>
         </div>
         <button
@@ -288,41 +300,70 @@ export const ExecutionsView: React.FC<ExecutionsViewProps> = ({ initialExecution
             </div>
           ) : activeExecution && traceTree ? (
             <div className="space-y-4">
-              {/* Execution Summary Banner */}
-              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80 backdrop-blur-sm shadow-xl flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm font-bold text-slate-100">{activeExecution.id}</span>
-                    <Badge
-                      variant={
-                        activeExecution.status === 'COMPLETED'
-                          ? 'success'
-                          : activeExecution.status === 'TIMEOUT'
-                          ? 'warning'
-                          : 'danger'
-                      }
-                    >
-                      {activeExecution.status}
-                    </Badge>
+              {/* Execution Summary Banner with ML Prediction Risk */}
+              <div className="p-4 rounded-xl border border-slate-800 bg-slate-900/80 backdrop-blur-sm shadow-xl space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-bold text-slate-100">{activeExecution.id}</span>
+                      <Badge
+                        variant={
+                          activeExecution.status === 'COMPLETED'
+                            ? 'success'
+                            : activeExecution.status === 'TIMEOUT'
+                            ? 'warning'
+                            : 'danger'
+                        }
+                      >
+                        {activeExecution.status}
+                      </Badge>
+                    </div>
+                    <span className="text-[11px] text-slate-400 block mt-0.5">
+                      Workflow: {activeExecution.workflow_definition_id}
+                    </span>
                   </div>
-                  <span className="text-[11px] text-slate-400 block mt-0.5">
-                    Workflow: {activeExecution.workflow_definition_id}
-                  </span>
+
+                  {/* ML Failure Prediction Badge & Button */}
+                  {activePrediction && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => setIsShapDrawerOpen(true)}
+                        className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/40 text-purple-300 transition shadow-sm"
+                      >
+                        <BrainCircuit className="h-4 w-4 text-purple-400" />
+                        <span className="font-bold">
+                          {(activePrediction.failure_probability * 100).toFixed(1)}% Risk ({activePrediction.predicted_risk_level})
+                        </span>
+                        <span className="text-[10px] text-purple-400 underline ml-1">TreeSHAP &rarr;</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
 
-                <div className="flex items-center space-x-4 text-xs">
+                <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-slate-800/80 text-xs">
                   <div>
                     <span className="text-slate-500 block text-[10px]">TOTAL DURATION</span>
                     <span className="font-bold text-emerald-400">
                       {Number(activeExecution.duration_ms ?? activeExecution.total_latency_ms ?? 0).toFixed(1)} ms
                     </span>
                   </div>
+
+                  {activePrediction && (
+                    <div>
+                      <span className="text-slate-500 block text-[10px]">FORECAST LATENCY</span>
+                      <span className="font-bold text-sky-400">
+                        {activePrediction.predicted_latency_ms.toFixed(1)} ms
+                      </span>
+                    </div>
+                  )}
+
                   <div>
                     <span className="text-slate-500 block text-[10px]">RETRIES</span>
                     <span className="font-bold text-slate-200">
                       {activeExecution.retry_count || 0}
                     </span>
                   </div>
+
                   <div>
                     <span className="text-slate-500 block text-[10px]">ERRORS</span>
                     <span className="font-bold text-rose-400">
@@ -346,6 +387,14 @@ export const ExecutionsView: React.FC<ExecutionsViewProps> = ({ initialExecution
           )}
         </div>
       </div>
+
+      {/* TreeSHAP Feature Attribution Slide-Out Drawer */}
+      {isShapDrawerOpen && (
+        <ShapAttributionDrawer
+          prediction={activePrediction}
+          onClose={() => setIsShapDrawerOpen(false)}
+        />
+      )}
     </div>
   );
 };
