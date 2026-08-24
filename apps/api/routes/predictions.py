@@ -164,12 +164,12 @@ async def train_models(
 ) -> TrainResponse:
     """Train XGBoost classifier and regressor on synthetic trace simulations and update registry."""
     trainer = ModelTrainer(random_state=req.random_state)
-    X, y_fail, y_lat = trainer.generate_synthetic_training_data(
+    X, y_fail, y_lat, groups = trainer.generate_synthetic_training_data(
         nominal_workflows=req.nominal_workflows,
         incident_workflows_per_scenario=req.incident_workflows_per_scenario,
     )
 
-    report = trainer.train_and_evaluate(X, y_fail, y_lat)
+    report = trainer.train_and_evaluate(X, y_fail, y_lat, groups=groups)
 
     registry = ModelRegistry()
     registry.save_models(

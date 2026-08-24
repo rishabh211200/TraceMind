@@ -118,7 +118,7 @@ def test_latency_regressor_fit_and_predict():
 
 def test_trainer_end_to_end_synthetic_data_generation():
     trainer = ModelTrainer(random_state=42)
-    X, y_fail, y_lat = trainer.generate_synthetic_training_data(
+    X, y_fail, y_lat, groups = trainer.generate_synthetic_training_data(
         nominal_workflows=40,
         incident_workflows_per_scenario=10,
     )
@@ -126,9 +126,10 @@ def test_trainer_end_to_end_synthetic_data_generation():
     assert len(X) > 0
     assert len(y_fail) == len(X)
     assert len(y_lat) == len(X)
+    assert len(groups) == len(X)
     assert set(X.columns) == set(FEATURE_NAMES)
 
-    report = trainer.train_and_evaluate(X, y_fail, y_lat, test_size=0.25)
+    report = trainer.train_and_evaluate(X, y_fail, y_lat, groups=groups, test_size=0.25)
     assert "metrics" in report
     assert "classification" in report["metrics"]
     assert "regression" in report["metrics"]

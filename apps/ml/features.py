@@ -202,7 +202,8 @@ class TraceFeatureExtractor:
         execution_events_map: dict[str, list[TraceEvent]],
         execution_outcomes: dict[str, tuple[bool, float]],
         min_prefix_steps: int = 1,
-    ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+        sample_checkpoints: bool = True,
+    ) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
         """Generate a prefix dataset across multiple executions for offline training.
 
         Parameters
@@ -213,15 +214,18 @@ class TraceFeatureExtractor:
             Map of execution_id -> (is_failed: bool, total_duration_ms: float).
         min_prefix_steps : int
             Minimum number of steps required to form a valid training sample.
+        sample_checkpoints : bool
+            If True, extracts representative progress points (33%, 66%, 100%) per execution.
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.Series, pd.Series]
-            (X_df, y_failure_series, y_latency_series)
+        tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]
+            (X_df, y_failure_series, y_latency_series, execution_ids_series)
         """
         rows: list[dict[str, float]] = []
         y_failures: list[int] = []
         y_latencies: list[float] = []
+        exec_ids: list[str] = []
 
         for exec_id, events in execution_events_map.items():
             if exec_id not in execution_outcomes:
@@ -233,15 +237,22 @@ class TraceFeatureExtractor:
             if total_steps < min_prefix_steps:
                 continue
 
-            # Extract prefixes from step min_prefix_steps up to total_steps
-            for step_idx in range(min_prefix_steps, total_steps + 1):
+            if sample_checkpoints:
+                checkpoints = {max(1, int(total_steps * p)) for p in (0.33, 0.66, 1.0)}
+                steps_to_extract = sorted(checkpoints)
+            else:
+                steps_to_extract = list(range(min_prefix_steps, total_steps + 1))
+
+            for step_idx in steps_to_extract:
                 prefix_feats = self.extract_features_from_events(events=events, as_of_step=step_idx)
                 rows.append(prefix_feats)
                 y_failures.append(1 if is_failed else 0)
                 y_latencies.append(float(total_duration))
+                exec_ids.append(exec_id)
 
         df_X = pd.DataFrame(rows, columns=self.feature_names)
         s_y_fail = pd.Series(y_failures, name="is_failed")
         s_y_lat = pd.Series(y_latencies, name="total_duration_ms")
+        s_groups = pd.Series(exec_ids, name="execution_id")
 
-        return df_X, s_y_fail, s_y_lat
+        return df_X, s_y_fail, s_y_lat, s_groups

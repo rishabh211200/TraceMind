@@ -5,6 +5,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
+    brier_score_loss,
     f1_score,
     mean_absolute_error,
     precision_score,
@@ -13,7 +14,7 @@ from sklearn.metrics import (
     roc_auc_score,
     root_mean_squared_error,
 )
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import GroupShuffleSplit, train_test_split
 
 from apps.ml.features import TraceFeatureExtractor
 from apps.ml.models import WorkflowFailureClassifier, WorkflowLatencyRegressor
@@ -34,13 +35,13 @@ class ModelTrainer:
         self,
         nominal_workflows: int = 200,
         incident_workflows_per_scenario: int = 40,
-    ) -> tuple[pd.DataFrame, pd.Series, pd.Series]:
+    ) -> tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]:
         """Generate a diverse synthetic dataset combining nominal workloads and chaos incidents.
 
         Returns
         -------
-        tuple[pd.DataFrame, pd.Series, pd.Series]
-            (X_features, y_failures, y_latencies)
+        tuple[pd.DataFrame, pd.Series, pd.Series, pd.Series]
+            (X_features, y_failures, y_latencies, groups_execution_ids)
         """
         all_events_map: dict[str, list[TraceEvent]] = {}
         all_outcomes: dict[str, tuple[bool, float]] = {}
@@ -55,7 +56,11 @@ class ModelTrainer:
         result_nominal = sim_nominal.run()
 
         for exec_rec in result_nominal.executions:
-            is_failed = exec_rec.status != "COMPLETED"
+            is_failed = (
+                exec_rec.status != "COMPLETED"
+                or (exec_rec.error_count or 0) > 0
+                or exec_rec.total_latency_ms > 1200.0
+            )
             all_outcomes[exec_rec.id] = (is_failed, exec_rec.total_latency_ms)
             all_events_map[exec_rec.id] = []
 
@@ -87,7 +92,11 @@ class ModelTrainer:
             result_chaos = sim_chaos.run()
 
             for exec_rec in result_chaos.executions:
-                is_failed = exec_rec.status != "COMPLETED"
+                is_failed = (
+                    exec_rec.status != "COMPLETED"
+                    or (exec_rec.error_count or 0) > 0
+                    or exec_rec.total_latency_ms > 1200.0
+                )
                 all_outcomes[exec_rec.id] = (is_failed, exec_rec.total_latency_ms)
                 all_events_map[exec_rec.id] = []
 
@@ -107,24 +116,46 @@ class ModelTrainer:
         X: pd.DataFrame,
         y_fail: pd.Series,
         y_lat: pd.Series,
+        groups: pd.Series | None = None,
         test_size: float = 0.2,
     ) -> dict[str, Any]:
         """Train classifier and regressor models and compute validation performance metrics.
+
+        Parameters
+        ----------
+        X : pd.DataFrame
+            Feature matrix.
+        y_fail : pd.Series
+            Binary failure targets.
+        y_lat : pd.Series
+            Continuous latency duration targets.
+        groups : pd.Series | None
+            Execution IDs for strict execution-level train/test isolation.
+        test_size : float
+            Proportion of dataset for testing.
 
         Returns
         -------
         dict[str, Any]
             Dictionary containing trained models and metric reports.
         """
-        # Train / Test split
-        X_train, X_test, y_fail_train, y_fail_test, y_lat_train, y_lat_test = train_test_split(
-            X,
-            y_fail,
-            y_lat,
-            test_size=test_size,
-            random_state=self.random_state,
-            stratify=y_fail if y_fail.nunique() > 1 else None,
-        )
+        # Execution-level group split if groups are provided
+        if groups is not None and groups.nunique() > 1:
+            gss = GroupShuffleSplit(n_splits=1, test_size=test_size, random_state=self.random_state)
+            train_idx, test_idx = next(gss.split(X, y_fail, groups=groups))
+            X_train, X_test = X.iloc[train_idx], X.iloc[test_idx]
+            y_fail_train, y_fail_test = y_fail.iloc[train_idx], y_fail.iloc[test_idx]
+            y_lat_train, y_lat_test = y_lat.iloc[train_idx], y_lat.iloc[test_idx]
+        else:
+            # Standard Stratified / Random split fallback
+            X_train, X_test, y_fail_train, y_fail_test, y_lat_train, y_lat_test = train_test_split(
+                X,
+                y_fail,
+                y_lat,
+                test_size=test_size,
+                random_state=self.random_state,
+                stratify=y_fail if y_fail.nunique() > 1 else None,
+            )
 
         # Calculate positive class weight for XGBoost
         num_pos = int(np.sum(y_fail_train == 1))
@@ -154,6 +185,7 @@ class ModelTrainer:
         f1 = float(f1_score(y_fail_test, y_pred_bin, zero_division=0))
         precision = float(precision_score(y_fail_test, y_pred_bin, zero_division=0))
         recall = float(recall_score(y_fail_test, y_pred_bin, zero_division=0))
+        brier = float(brier_score_loss(y_fail_test, y_pred_proba))
 
         # 2. Train Latency Regressor
         regressor = WorkflowLatencyRegressor(random_state=self.random_state)
@@ -176,6 +208,7 @@ class ModelTrainer:
                     "f1_score": f1,
                     "precision": precision,
                     "recall": recall,
+                    "brier_score": brier,
                 },
                 "regression": {
                     "mean_absolute_error_ms": mae,

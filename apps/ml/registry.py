@@ -131,11 +131,11 @@ class ModelRegistry:
         from apps.ml.trainer import ModelTrainer
 
         trainer = ModelTrainer(random_state=42)
-        X, y_fail, y_lat = trainer.generate_synthetic_training_data(
+        X, y_fail, y_lat, groups = trainer.generate_synthetic_training_data(
             nominal_workflows=120,
             incident_workflows_per_scenario=25,
         )
-        report = trainer.train_and_evaluate(X, y_fail, y_lat)
+        report = trainer.train_and_evaluate(X, y_fail, y_lat, groups=groups)
 
         self.save_models(
             classifier=report["classifier"],
