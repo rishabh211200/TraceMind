@@ -61,11 +61,13 @@ class IncidentPatternMatcher:
             ):
                 has_db_query = True
 
-        culprit_anom_types = set()
+        culprit_anom_types: set[str] = set()
         if anomalies:
             for anom in anomalies:
                 if culprit_service in anom.get("affected_services", []):
-                    culprit_anom_types.add(anom.get("anomaly_type"))
+                    anom_type = anom.get("anomaly_type")
+                    if anom_type is not None:
+                        culprit_anom_types.add(str(anom_type))
 
         return (
             max_latency,
@@ -73,7 +75,7 @@ class IncidentPatternMatcher:
             has_failure,
             has_db_query,
             culprit_anom_types,
-            culprit_events,
+            list(culprit_events),
         )
 
     def classify(
