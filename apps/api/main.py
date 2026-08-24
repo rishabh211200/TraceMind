@@ -9,9 +9,11 @@ from pydantic import BaseModel
 
 from apps.api.exceptions import register_exception_handlers
 from apps.api.routes import (
+    anomalies_router,
     executions_router,
     incidents_router,
     predictions_router,
+    root_cause_router,
     services_router,
     simulator_router,
     traces_router,
@@ -38,6 +40,14 @@ OPENAPI_TAGS = [
         "description": "In-flight workflow failure & latency predictions, TreeSHAP feature attributions, and ML model lifecycle management.",
     },
     {
+        "name": "Anomalies & Outlier Detection",
+        "description": "Unsupervised and statistical anomaly detection: Isolation Forest, service latency spikes, unusual DAG paths, and error cascades.",
+    },
+    {
+        "name": "Root Cause Engine",
+        "description": "Deterministic causal graph reasoning, upstream back-traversal, incident pattern matching, and multi-hypothesis ranking.",
+    },
+    {
         "name": "Simulator & Chaos Controls",
         "description": "Deterministic synthetic trace simulation generation, chaos scenario catalog, and targeted chaos injection.",
     },
@@ -58,9 +68,10 @@ OPENAPI_TAGS = [
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application startup and shutdown event lifecycle."""
+    """Lifecycle event handler for FastAPI startup and graceful shutdown."""
     logger.info(
         "starting_tracemind_api",
+        version="0.8.0",
         environment=settings.environment,
         debug=settings.debug,
     )
@@ -79,7 +90,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TraceMind API",
     description="AI-Powered Distributed Workflow Intelligence Platform REST API",
-    version="0.6.0",
+    version="0.8.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -103,6 +114,8 @@ register_exception_handlers(app)
 app.include_router(workflows_router)
 app.include_router(executions_router)
 app.include_router(predictions_router)
+app.include_router(anomalies_router)
+app.include_router(root_cause_router)
 app.include_router(traces_router)  # Preserved for Milestone 2 client compatibility
 app.include_router(simulator_router)
 app.include_router(services_router)
@@ -119,6 +132,23 @@ class HealthResponse(BaseModel):
 
 
 @app.get(
+    "/",
+    tags=["System"],
+    summary="API Root Metadata",
+)
+async def root_metadata() -> dict[str, Any]:
+    """Retrieve top-level API metadata and documentation links."""
+    return {
+        "service": "TraceMind Distributed Workflow Intelligence API",
+        "version": "0.8.0",
+        "environment": settings.environment,
+        "docs": "/docs",
+        "openapi": "/openapi.json",
+        "health": "/api/v1/health",
+    }
+
+
+@app.get(
     "/api/v1/health",
     response_model=HealthResponse,
     status_code=status.HTTP_200_OK,
@@ -129,7 +159,7 @@ async def health_check() -> HealthResponse:
     """Retrieve operational status for API and system modules."""
     return HealthResponse(
         status="healthy",
-        version="0.3.0",
+        version="0.8.0",
         environment=settings.environment,
         modules={
             "api": "operational",
@@ -137,23 +167,8 @@ async def health_check() -> HealthResponse:
             "trace_store": "ready",
             "intelligence": "ready",
             "ml_engine": "ready",
-            "root_cause_engine": "ready",
-            "workflow_optimizer": "ready",
-            "ai_analyst": "ready",
+            "anomaly_detector": "ready",
+            "root_cause_engine": "operational",
+            "optimizer": "ready",
         },
     )
-
-
-@app.get(
-    "/",
-    tags=["System"],
-    summary="Root API info",
-)
-async def root() -> dict[str, Any]:
-    """Root endpoint redirecting developers to OpenAPI documentation."""
-    return {
-        "service": "TraceMind Workflow Intelligence Platform",
-        "version": "0.3.0",
-        "docs": "/docs",
-        "health": "/api/v1/health",
-    }

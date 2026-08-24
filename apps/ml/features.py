@@ -82,20 +82,41 @@ class TraceFeatureExtractor:
         dict[str, float]
             Ordered dictionary of extracted feature values.
         """
-        # Convert dicts to TraceEvent if necessary
-        normalized_events: list[TraceEvent] = []
+        # Fast normalization without heavyweight pydantic re-validation
+        normalized_events: list[dict[str, Any]] = []
         for e in events:
             if isinstance(e, dict):
-                normalized_events.append(TraceEvent.model_validate(e))
+                t = e.get("timestamp")
+                if isinstance(t, str):
+                    t = datetime.fromisoformat(t.replace("Z", "+00:00"))
+                normalized_events.append(
+                    {
+                        "service": str(e.get("service", "")),
+                        "event_type": str(e.get("event_type", "")),
+                        "status": str(e.get("status", "SUCCESS")),
+                        "latency_ms": float(e.get("latency_ms", 0.0)),
+                        "timestamp": t or datetime.min,
+                    }
+                )
             else:
-                normalized_events.append(e)
+                normalized_events.append(
+                    {
+                        "service": str(e.service),
+                        "event_type": str(
+                            e.event_type.value if hasattr(e.event_type, "value") else e.event_type
+                        ),
+                        "status": str(e.status.value if hasattr(e.status, "value") else e.status),
+                        "latency_ms": float(e.latency_ms),
+                        "timestamp": e.timestamp,
+                    }
+                )
 
         # Sort chronologically by timestamp
-        sorted_events = sorted(normalized_events, key=lambda x: x.timestamp)
+        sorted_events = sorted(normalized_events, key=lambda x: x["timestamp"])
 
         # Apply strict temporal filter: reject any future events where t > as_of_timestamp
         if as_of_timestamp is not None:
-            sorted_events = [e for e in sorted_events if e.timestamp <= as_of_timestamp]
+            sorted_events = [e for e in sorted_events if e["timestamp"] <= as_of_timestamp]
 
         # Apply prefix slice if as_of_step is specified
         if as_of_step is not None and as_of_step > 0:
@@ -106,37 +127,51 @@ class TraceFeatureExtractor:
 
         # Compute core temporal metrics
         step_count = float(len(sorted_events))
-        latencies = [e.latency_ms for e in sorted_events if e.latency_ms >= 0.0]
+        latencies = [e["latency_ms"] for e in sorted_events if e["latency_ms"] >= 0.0]
         mean_step_latency = float(np.mean(latencies)) if latencies else 0.0
         max_step_latency = float(np.max(latencies)) if latencies else 0.0
         last_event = sorted_events[-1]
-        last_step_latency = float(last_event.latency_ms)
+        last_step_latency = float(last_event["latency_ms"])
 
         # Retries and errors
         retries = sum(
             1
             for e in sorted_events
-            if e.event_type in (EventType.RETRY_STARTED, EventType.RETRY_COMPLETED)
-            or e.status == EventStatus.RETRY
+            if e["event_type"]
+            in (
+                EventType.RETRY_STARTED,
+                EventType.RETRY_COMPLETED,
+                "RETRY_STARTED",
+                "RETRY_COMPLETED",
+            )
+            or e["status"] in (EventStatus.RETRY, "RETRY")
         )
         errors = sum(
             1
             for e in sorted_events
-            if e.status == EventStatus.FAILURE or e.event_type == EventType.SERVICE_FAILED
+            if e["status"] in (EventStatus.FAILURE, "FAILURE")
+            or e["event_type"] in (EventType.SERVICE_FAILED, "SERVICE_FAILED")
         )
-        last_is_error = 1.0 if last_event.status == EventStatus.FAILURE else 0.0
+        last_is_error = 1.0 if last_event["status"] in (EventStatus.FAILURE, "FAILURE") else 0.0
 
         # Operation flags
         has_cache_miss = (
-            1.0 if any(e.event_type == EventType.CACHE_MISS for e in sorted_events) else 0.0
+            1.0
+            if any(e["event_type"] in (EventType.CACHE_MISS, "CACHE_MISS") for e in sorted_events)
+            else 0.0
         )
         has_db_query = (
-            1.0 if any(e.event_type == EventType.DATABASE_QUERY for e in sorted_events) else 0.0
+            1.0
+            if any(
+                e["event_type"] in (EventType.DATABASE_QUERY, "DATABASE_QUERY")
+                for e in sorted_events
+            )
+            else 0.0
         )
 
         # Elapsed time from start of first event to completion of last event
-        first_time = sorted_events[0].timestamp
-        last_time = sorted_events[-1].timestamp
+        first_time = sorted_events[0]["timestamp"]
+        last_time = sorted_events[-1]["timestamp"]
         time_delta_ms = (last_time - first_time).total_seconds() * 1000.0
         # If timestamps are identical or close, sum latencies as lower bound
         elapsed_time_ms = max(time_delta_ms + last_step_latency, float(np.sum(latencies)))
@@ -144,7 +179,9 @@ class TraceFeatureExtractor:
         # Per-service cumulative latencies
         service_latencies: dict[str, float] = {}
         for e in sorted_events:
-            service_latencies[e.service] = service_latencies.get(e.service, 0.0) + e.latency_ms
+            service_latencies[e["service"]] = (
+                service_latencies.get(e["service"], 0.0) + e["latency_ms"]
+            )
 
         auth_latency = service_latencies.get("auth-service", 0.0)
         customer_latency = service_latencies.get("customer-service", 0.0)
@@ -154,7 +191,7 @@ class TraceFeatureExtractor:
 
         # Latency ratio vs nominal expected baseline for the executed services
         expected_nominal_total = sum(
-            self.nominal_latencies.get(e.service, 20.0) for e in sorted_events
+            self.nominal_latencies.get(e["service"], 20.0) for e in sorted_events
         )
         actual_total_latency = sum(latencies)
         latency_ratio = (
