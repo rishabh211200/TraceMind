@@ -11,6 +11,7 @@ from apps.api.exceptions import register_exception_handlers
 from apps.api.routes import (
     executions_router,
     incidents_router,
+    predictions_router,
     services_router,
     simulator_router,
     traces_router,
@@ -31,6 +32,10 @@ OPENAPI_TAGS = [
     {
         "name": "Executions & Traces",
         "description": "Workflow execution history, chronological span event streams, and recursive DAG tree reconstructions.",
+    },
+    {
+        "name": "Intelligence & ML Engine",
+        "description": "In-flight workflow failure & latency predictions, TreeSHAP feature attributions, and ML model lifecycle management.",
     },
     {
         "name": "Simulator & Chaos Controls",
@@ -74,7 +79,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TraceMind API",
     description="AI-Powered Distributed Workflow Intelligence Platform REST API",
-    version="0.3.0",
+    version="0.6.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -97,6 +102,7 @@ register_exception_handlers(app)
 # Mount API Routers
 app.include_router(workflows_router)
 app.include_router(executions_router)
+app.include_router(predictions_router)
 app.include_router(traces_router)  # Preserved for Milestone 2 client compatibility
 app.include_router(simulator_router)
 app.include_router(services_router)

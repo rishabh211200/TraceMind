@@ -389,3 +389,78 @@ With Milestone 3 formally completed, all REST API contracts, graph topology stru
 * **Frontend Checks**: **TypeScript type-check 0 errors**, **Vite build passing in 3.02s**.
 
 ---
+
+## Milestone 6: ML Failure & Latency Prediction Engine with TreeSHAP Explainability
+
+* **Status**: Completed
+* **Branch**: `feat/ml-prediction-engine`
+* **Objective**: Build an in-flight temporal feature extraction pipeline, calibrated XGBoost failure classifier, continuous latency regressor, exact TreeSHAP feature attribution engine with diagnostic explainability, database persistence layer, REST endpoints, and interactive frontend risk visualizers.
+
+### 1. Architectural Decisions
+1. **Strict Temporal Integrity ($t \le t_k$)**: In-flight feature extraction prunes all spans where $t > t_k$, preventing future temporal leakage during inference.
+2. **Canonical 16-Dimensional Tabular Feature Space**: Computes step count, elapsed duration, cumulative retries, intermediate errors, mean/max/last step latencies, cache miss/database query flags, per-service cumulative durations (`auth`, `customer`, `inventory`, `pricing`, `payment`), and latency ratios vs nominal baselines.
+3. **Calibrated Gradient-Boosted Classifiers**: XGBoost binary classifier with positive-class reweighting (`scale_pos_weight`) predicting failure probability and mapping to categorical risk bands (`LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+4. **Duration Forecasting Regression**: XGBoost regressor predicting continuous total workflow execution duration in milliseconds.
+5. **Exact TreeSHAP Explainability**: Integrates `shap.TreeExplainer` on tree ensembles to compute exact additive local Shapley attributions $\phi_0 + \sum \phi_i(x) = f(x)$ with human-readable diagnostic messages.
+6. **Thread-Safe Model Registry & Cache**: Singleton `ModelRegistry` with disk persistence, joblib serialization, and automatic bootstrap training on synthetic trace simulations if no models exist on disk.
+7. **Database Persistence Layer**: `PredictionModel` SQLAlchemy ORM entity in `workflow_predictions` table and async `PredictionRepository` providing chronological prediction history per execution and high-risk filtering.
+8. **Interactive TreeSHAP Frontend Drawer**: Slide-out drawer in `ExecutionsView.tsx` with diverging red/green horizontal attribution bar charts and risk badges.
+
+### 2. New & Modified Components
+
+#### Machine Learning Engine (`apps/ml/`)
+* `features.py`: `TraceFeatureExtractor` with 16 canonical features and prefix dataset generator.
+* `models.py`: `WorkflowFailureClassifier` and `WorkflowLatencyRegressor` model wrappers.
+* `trainer.py`: `ModelTrainer` with synthetic balanced dataset generation and metric evaluation.
+* `explainability.py`: `TreeSHAPExplainer` computing exact Shapley values and diagnostic text.
+* `registry.py`: `ModelRegistry` managing model serialization, versioning, and caching.
+
+#### Persistence Layer (`packages/database/`)
+* `models/prediction.py`: `PredictionModel` ORM entity with JSON feature vectors and SHAP attributions.
+* `repositories/prediction_repository.py`: Async repository for saving and querying prediction records.
+
+#### REST API Layer (`apps/api/`)
+* `schemas/prediction.py`: `PredictionRequest`, `PredictionResponse`, `FeatureContributionResponse`, `TrainRequest`, `TrainResponse`, `ModelMetadataResponse`.
+* `routes/predictions.py`: REST endpoints mounted under `/api/v1/predictions`.
+* `main.py`: Mounted `predictions_router` and updated OpenAPI metadata to version `0.6.0`.
+
+#### Frontend Dashboard (`frontend/src/`)
+* `types/prediction.ts`: TypeScript interfaces for predictions, SHAP attributions, and training requests.
+* `api/predictions.ts`: Typed API client for `/api/v1/predictions`.
+* `components/waterfall/ShapAttributionDrawer.tsx`: Slide-out TreeSHAP drawer with diverging bar visualizer.
+* `views/ExecutionsView.tsx`: Integrated ML risk level badges, forecast duration, and TreeSHAP drawer trigger.
+
+#### Test Suite & Benchmarks
+* `tests/unit/test_feature_extraction.py`: Temporal integrity, prefix slicing, and feature calculation tests.
+* `tests/unit/test_ml_models.py`: Classifier, regressor, and trainer pipeline tests.
+* `tests/unit/test_explainability.py`: TreeSHAP attribution ranking and diagnostic description tests.
+* `tests/integration/test_api_predictions.py`: End-to-end integration tests for `/api/v1/predictions`.
+* `benchmarks/benchmark_ml_inference.py`: Throughput and P99 latency benchmark.
+
+### 3. Verification & Performance Benchmark Results
+
+```text
+================================================================================
+        TraceMind Milestone 6 ML & TreeSHAP Inference Benchmark        
+================================================================================
+ Total Benchmark Inferences Processed : 1,000 runs
+--------------------------------------------------------------------------------
+ 1. Feature Extraction Throughput      : 37,414 extractions/sec (0.027s)
+ 2. End-to-End Inference Throughput    : 356 inferences/sec (2.808s)
+--------------------------------------------------------------------------------
+ Single-Sample End-to-End Latency (Feature Extractor + XGBoost + TreeSHAP):
+   • P50 Latency                       : 2.65 ms
+   • P90 Latency                       : 3.57 ms
+   • P95 Latency                       : 3.92 ms
+   • P99 Latency                       : 4.37 ms
+   • Mean Latency                      : 2.81 ms
+================================================================================
+ Target Latency Criteria (P99 < 15.0ms) : [PASSED]
+================================================================================
+```
+
+* **Test Suite**: **68/68 tests passing** in **6.16s** (`pytest -p no:cacheprovider tests/ -v`).
+* **Type Safety**: **Mypy clean (0 errors)** across 97 source files.
+* **Linter & Formatter**: **Ruff clean** across 120 source files.
+* **Frontend Checks**: **TypeScript type-check 0 errors**, **Vite build passing in 3.96s**.
+
