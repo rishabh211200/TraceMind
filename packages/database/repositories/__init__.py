@@ -2,6 +2,7 @@
 
 from packages.database.repositories.anomaly_repository import AnomalyRepository
 from packages.database.repositories.incident_repository import IncidentRepository
+from packages.database.repositories.optimization_repository import OptimizationRepository
 from packages.database.repositories.prediction_repository import PredictionRepository
 from packages.database.repositories.root_cause_repository import RootCauseRepository
 from packages.database.repositories.service_repository import ServiceRepository
@@ -16,4 +17,5 @@ __all__ = [
     "PredictionRepository",
     "AnomalyRepository",
     "RootCauseRepository",
+    "OptimizationRepository",
 ]

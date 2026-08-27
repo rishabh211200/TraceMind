@@ -664,5 +664,70 @@ Key capabilities delivered:
 * **Linter & Formatter**: **Ruff clean** across 153 source files.
 * **Frontend Build**: **Vite production build passing in 3.64s** with 0 TypeScript errors.
 
+---
+
+## Milestone 9: Workflow Optimizer & Execution Path Routing
+
+* **Status**: Completed
+* **Branch**: `feat/workflow-optimizer`
+* **Objective**: Build a high-performance multi-objective workflow path optimizer, 3D Pareto frontier evaluator, transparent resource cost model, and advisory incident diversion routing recommendation engine.
+
+### 1. Architectural Decisions
+1. **Observed vs Modeled Metrics**: Strictly differentiates empirical trace observations (observed mean/P95 latency, empirical success rates, retries) from modeled compute/resource cost units derived from transparent step costs and retry penalties.
+2. **Advisory Decision Support**: Framing optimization and diversion recommendations as decision intelligence for operators and routing systems with clear delta savings ($\Delta \text{Latency}$, $\Delta \text{Cost}$, $\Delta \text{Reliability}$).
+3. **Statistical Confidence Calibration**: Discounts candidate paths with low observation sample sizes ($\text{Confidence}(P) = \min(1.0, N(P) / N_{\text{thresh}})$) to prevent overfitting to sparse data.
+4. **3D Non-Dominated Pareto Frontier**: Mathematically checks dominance across Latency (min), Cost (min), and Reliability (max) to compute the Pareto optimal frontier $\mathcal{P}^*$.
+
+### 2. Components Implemented
+* `apps/ml/optimizer/cost_model.py`: Transparent resource cost calculator (`ResourceCostModel`).
+* `apps/ml/optimizer/pareto.py`: 3D Pareto dominance evaluator (`ParetoFrontierCalculator`).
+* `apps/ml/optimizer/path_extractor.py`: Historical execution path miner and empirical aggregator (`PathExtractor`).
+* `apps/ml/optimizer/engine.py`: WorkflowOptimizer engine with SLA constraint filtering and advisory incident detour logic.
+* `packages/database/models/optimization.py` & `OptimizationRepository`: Async SQLAlchemy persistence model and repository.
+* `apps/api/routes/optimizer.py` & `apps/api/schemas/optimizer.py`: FastAPI endpoints for `/api/v1/optimizer` (`/recommend`, `/paths`, `/pareto`, `/history`, `/stats`, `/{id}`).
+* `frontend/src/views/OptimizerView.tsx`, `ParetoFrontierChart.tsx`, `PathComparisonDiff.tsx`: Interactive React dashboard with Pareto scatter visualizer and workflow comparison diff.
+
+### 3. Verification & Performance Benchmark Results
+
+```text
+================================================================================
+      TraceMind Milestone 9 Workflow Optimizer & Path Routing Benchmark      
+================================================================================
+1. Measuring Optimization Execution Latency (1,000 iterations):
+--------------------------------------------------------------------------------
+  P50 Latency :  0.133 ms
+  P90 Latency :  0.230 ms
+  P95 Latency :  0.284 ms
+  P99 Latency :  0.369 ms   [Target: < 10.0 ms]
+  Mean Latency:  0.165 ms
+  Max Latency :  5.846 ms
+  Throughput  :   6045.5 optimizations / sec
+  --> Latency Gate Check: [PASS]
+
+2. Validating 3D Pareto Optimal Frontier Dominance:
+--------------------------------------------------------------------------------
+  Total Evaluated Candidate Paths: 5
+  Non-Dominated Pareto Optimal Set: 3 paths (path_03, path_04, path_05)
+  Dominated Paths                 : 2 paths (path_01, path_02)
+  --> Pareto Frontier Gate Check: [PASS]
+
+3. Validating Advisory Incident Diversion Efficacy across Failure Modes:
+--------------------------------------------------------------------------------
+  Culprit: inventory-db       (Database IOPS Saturation      ) -> Rec: path_03 | Rel Gain: +52.7% | Lat Reduction: 87.8% | Max Gain: 87.8% [PASS]
+  Culprit: customer-db        (Customer DB Slow Query Lock   ) -> Rec: path_03 | Rel Gain: +52.7% | Lat Reduction: 87.8% | Max Gain: 87.8% [PASS]
+  Culprit: payment-gateway    (Transit Gateway Packet Loss   ) -> Rec: path_05 | Rel Gain: +50.5% | Lat Reduction: 78.9% | Max Gain: 78.9% [PASS]
+  Culprit: pricing-service    (Pricing Service Crash         ) -> Rec: path_03 | Rel Gain: + 2.7% | Lat Reduction: 57.1% | Max Gain: 57.1% [PASS]
+  --> Verifiable >= 15% Improvement Gate Check: [PASS]
+
+================================================================================
+   >>> MILESTONE 9 WORKFLOW OPTIMIZER BENCHMARK PASSED ALL QUALITY GATES <<<   
+================================================================================
+```
+
+* **Test Suite**: **91/91 tests passing** (`pytest -p no:cacheprovider tests/`).
+* **Type Safety**: **Mypy clean (0 errors)** across 138 source files.
+* **Linter & Formatter**: **Ruff clean** across 168 source files.
+* **Frontend Build**: **Vite production build passing in 2.98s** with 0 TypeScript errors.
+
 
 
