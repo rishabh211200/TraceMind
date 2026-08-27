@@ -10,6 +10,7 @@ import {
   Zap,
   AlertTriangle,
   SearchCheck,
+  Compass,
 } from 'lucide-react';
 
 export type DashboardTab =
@@ -19,6 +20,7 @@ export type DashboardTab =
   | 'executions'
   | 'anomalies'
   | 'root_cause'
+  | 'optimizer'
   | 'services'
   | 'simulator';
 
@@ -40,6 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'executions', label: 'Traces', icon: Layers },
     { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle },
     { id: 'root_cause', label: 'Root Cause', icon: SearchCheck },
+    { id: 'optimizer', label: 'Optimizer', icon: Compass },
     { id: 'services', label: 'Services', icon: Server },
     { id: 'simulator', label: 'Simulator', icon: Flame },
   ];
@@ -56,7 +59,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center space-x-2">
               <span className="font-bold text-base tracking-tight text-slate-100 font-mono">TraceMind</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 font-mono border border-emerald-500/20">
-                v0.4.0
+                v0.9.0
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden xl:block font-mono">

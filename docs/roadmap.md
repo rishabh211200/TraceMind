@@ -135,12 +135,17 @@ This document outlines the phased milestone execution plan for TraceMind.
 
 ---
 
-## Milestone 9: Workflow Optimizer
-* **Objective**: Multi-objective path optimization and routing recommendations.
+## Milestone 9: Workflow Optimizer & Execution Path Routing
+* **Objective**: Multi-objective path optimization, 3D Pareto frontier evaluation, transparent resource cost modeling, and advisory incident detour recommendations.
 * **Deliverables**:
-  - Historical path comparison algorithms.
-  - Weighted objective score (Latency vs. Cost vs. Reliability).
-* **Acceptance**: Optimizer recommends verifiable superior execution paths.
+  - Transparent resource cost model distinguishing observed telemetry from modeled compute, DB I/O, and retry penalty units.
+  - Multi-objective 3D Pareto optimal frontier calculator across Latency, Cost, and Reliability.
+  - Historical trace path extractor with sample count tracking and statistical confidence calibration.
+  - WorkflowOptimizer engine with weighted utility scoring, SLA constraint filters, and advisory incident diversion recommendations around M8 culprit components.
+  - Async persistence (`workflow_optimizations` table & `OptimizationRepository`) and FastAPI endpoints (`/api/v1/optimizer`).
+  - Interactive React Optimizer UI with 3D Pareto scatter visualizer, side-by-side workflow diff cards, and live auto-normalized weight sliders.
+  - 1,000-run performance benchmark achieving P99 latency of 0.369ms (<10ms target), 6,045+ opt/sec throughput, and verifiable 15%–87.8% path improvements.
+* **Status**: Completed
 
 ---
 

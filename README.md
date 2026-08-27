@@ -209,8 +209,8 @@ Supported Chaos Presets:
 | **Milestone 6** | Supervised ML failure/latency risk prediction + TreeSHAP explainability | ✅ **Completed** |
 | **Milestone 7** | Unsupervised multi-model anomaly detection engine | ✅ **Completed** |
 | **Milestone 8** | Graph-based deterministic root cause reasoning & propagation visualizer | ✅ **Completed** |
-| **Milestone 9** | Multi-objective workflow optimization & execution path routing | 🔜 *In Progress* |
-| **Milestone 10** | Tool-grounded conversational AI analyst grounded in telemetry | 📋 *Planned* |
+| **Milestone 9** | Multi-objective workflow optimization & execution path routing | ✅ **Completed** |
+| **Milestone 10** | Tool-grounded conversational AI analyst grounded in telemetry | 🔜 *In Progress* |
 | **Milestone 11** | OpenTelemetry, Prometheus exporter, and structured JSON logs | 📋 *Planned* |
 | **Milestone 12** | Multi-stage Docker containerization & automated cloud deployment | 📋 *Planned* |
 | **Milestone 13** | Large-scale HPC performance benchmarking (10K–10M traces) | 📋 *Planned* |
