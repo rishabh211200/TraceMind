@@ -112,6 +112,15 @@ async def recommend_optimal_path(
         min_reliability_constraint=payload.min_reliability_constraint,
     )
 
+    from packages.observability.metrics import record_optimization
+
+    record_optimization(
+        optimization_type=recommendation.optimization_type.value
+        if hasattr(recommendation.optimization_type, "value")
+        else str(recommendation.optimization_type),
+        workflow_id=payload.workflow_definition_id,
+    )
+
     current_schema = (
         _map_path_metrics_to_schema(recommendation.current_path)
         if recommendation.current_path

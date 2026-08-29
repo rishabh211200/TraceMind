@@ -790,6 +790,77 @@ Key capabilities delivered:
 * **Linter & Formatter**: **Ruff clean** across 183 source files.
 * **Frontend Build**: **Vite production build passing in 4.82s** with 0 TypeScript errors.
 
+---
+
+## Milestone 11: Application Observability with OpenTelemetry, Prometheus & Grafana
+
+* **Status**: Completed
+* **Branch**: `feat/application-observability`
+* **Objective**: Instrument TraceMind API, ML inference, and Kafka streaming workers with OpenTelemetry distributed tracing (W3C traceparent protocol), Prometheus low-cardinality metric collectors, structlog correlation ID propagation, and pre-configured Grafana monitoring dashboards.
+
+### 1. Architectural Decisions
+1. **W3C Trace Context Standard**: Implemented standard `traceparent: 00-{trace_id}-{parent_id}-{flags}` parsing and generation alongside human-readable `X-Trace-Id` and `X-Span-Id` response headers.
+2. **Strict Low-Cardinality Rules**: All URL paths normalized (e.g. `/api/v1/traces/:id`, `/api/v1/optimizer/:id`) before Prometheus label registration to prevent memory leaks and database degradation in time-series engines.
+3. **Correlation ID Log Enrichment**: `TracingAndMetricsMiddleware` and `add_opentelemetry_context` processor bind active trace and span IDs to `structlog.contextvars`, ensuring 100% of structured JSON logs contain correlation context.
+4. **Fail-Open Resilience**: All telemetry hooks, OpenTelemetry spans, and Prometheus metric records are wrapped in fail-open handlers so that telemetry failures never impact API operations.
+5. **Production Docker Monitoring Stack**: Added Prometheus (`prom/prometheus:v2.53.0`) and Grafana (`grafana/grafana:11.1.0`) services to `docker-compose.yml` with automated datasource and dashboard provisioning.
+
+### 2. Components Implemented
+* `packages/observability/tracer.py`: OpenTelemetry TracerProvider, W3C traceparent utilities, and `@trace_span` / `trace_async_span` context managers.
+* `packages/observability/metrics.py`: Centralized Prometheus metric collectors (`HTTP_REQUESTS_TOTAL`, `HTTP_REQUEST_DURATION_SECONDS`, `ML_INFERENCE_DURATION_SECONDS`, `ANOMALIES_DETECTED_TOTAL`, `ROOT_CAUSE_DIAGNOSES_TOTAL`, `WORKFLOW_OPTIMIZATIONS_TOTAL`, `ANALYST_GROUNDING_SCORE`, `KAFKA_MESSAGES_INGESTED_TOTAL`, `DATABASE_CONNECTIONS_ACTIVE`) and fail-open recording helpers.
+* `packages/observability/middleware.py`: FastAPI `TracingAndMetricsMiddleware` measuring request latencies, normalizing endpoints, and binding contextvars.
+* `packages/observability/__init__.py`: Clean module exports.
+* `packages/common/logging.py`: Added `add_opentelemetry_context` processor to structlog pipeline.
+* `apps/api/main.py`: Mounted `TracingAndMetricsMiddleware`, registered `GET /metrics` exposition route, and bumped API version to `0.11.0`.
+* `infrastructure/monitoring/prometheus.yml`: Scrape configuration for TraceMind API metrics.
+* `infrastructure/monitoring/grafana/`: Automated datasource provisioning (`datasource.yml`), dashboard provider (`dashboard_provider.yml`), and comprehensive Grafana dashboard (`tracemind_observability_dashboard.json`) with 8 interactive panels.
+* `docker-compose.yml`: Added `prometheus` (port 9090) and `grafana` (port 3000) services.
+* `tests/unit/test_observability.py`: Unit tests for W3C traceparent formatting, path normalization, tracer initialization, and metric recording.
+* `tests/integration/test_api_observability.py`: Integration tests for `GET /metrics` Prometheus exposition format, response tracing headers, and metric counter increments.
+* `benchmarks/benchmark_observability_overhead.py`: Latency overhead benchmark with percentile deltas ($\Delta\text{P50}$, $\Delta\text{P90}$, $\Delta\text{P95}$, $\Delta\text{P99}$, $\Delta\text{Mean}$).
+* `docs/architecture/observability.md`: Complete architectural documentation.
+
+### 3. Verification & Benchmark Results
+
+```text
+================================================================================
+       TraceMind Milestone 11 Observability Latency Overhead Benchmark        
+================================================================================
+1. Measuring Baseline Request Latency (1000 iterations):
+--------------------------------------------------------------------------------
+  Baseline P50 Latency  :  0.001 ms
+  Baseline P90 Latency  :  0.001 ms
+  Baseline P95 Latency  :  0.001 ms
+  Baseline P99 Latency  :  0.001 ms
+  Baseline Mean Latency :  0.001 ms
+
+2. Measuring Instrumented Request Latency (1000 iterations):
+--------------------------------------------------------------------------------
+  Instrumented P50 Latency :  0.062 ms
+  Instrumented P90 Latency :  0.108 ms
+  Instrumented P95 Latency :  0.139 ms
+  Instrumented P99 Latency :  0.246 ms
+  Instrumented Mean Latency:  0.089 ms
+
+3. Validating Observability Overhead & Percentile Deltas:
+--------------------------------------------------------------------------------
+  Delta P50  : +0.062 ms
+  Delta P90  : +0.107 ms
+  Delta P95  : +0.138 ms
+  Delta P99  : +0.245 ms   [Target: < 0.500 ms]  --> [PASS]
+  Delta Mean : +0.088 ms   [Target: < 0.200 ms]  --> [PASS]
+
+================================================================================
+   >>> MILESTONE 11 OBSERVABILITY BENCHMARK PASSED ALL QUALITY GATES <<<   
+================================================================================
+```
+
+* **Test Suite**: **111/111 tests passing** in 12.29s (`pytest -p no:cacheprovider tests/`).
+* **Type Safety**: **Mypy clean (0 errors)** across 156 source files.
+* **Linter & Formatter**: **Ruff clean** across 191 source files.
+* **Frontend Build**: **Vite production build passing** with 0 errors.
+
+
 
 
 

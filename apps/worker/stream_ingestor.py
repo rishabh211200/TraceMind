@@ -157,6 +157,14 @@ class StreamingIngestor:
         count = len(records)
         self._total_ingested += count
         self._total_flushes += 1
+
+        try:
+            from packages.observability.metrics import record_kafka_ingestion
+
+            record_kafka_ingestion(count=count)
+        except Exception:
+            pass  # Fail-open guarantee
+
         return count
 
 

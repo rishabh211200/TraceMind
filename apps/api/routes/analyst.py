@@ -111,7 +111,15 @@ async def chat(
         config=cfg,
     )
 
-    # 4. Persist user & assistant turns if enabled
+    # 4. Record Prometheus Metrics & Persist user & assistant turns if enabled
+    from packages.observability.metrics import record_analyst_query
+
+    record_analyst_query(
+        provider=provider_str,
+        status="success",
+        grounding_score=response.grounding_report.grounding_score,
+    )
+
     if payload.persist and conv_id:
         await repo.add_message(
             conversation_id=conv_id,
