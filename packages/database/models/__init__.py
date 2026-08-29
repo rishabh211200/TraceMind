@@ -1,5 +1,9 @@
 """Database ORM models package export."""
 
+from packages.database.models.analyst import (
+    AnalystConversationModel,
+    AnalystMessageModel,
+)
 from packages.database.models.anomaly import AnomalyModel
 from packages.database.models.base import Base, TimestampMixin
 from packages.database.models.incident import IncidentModel
@@ -25,4 +29,6 @@ __all__ = [
     "AnomalyModel",
     "RootCauseModel",
     "OptimizationModel",
+    "AnalystConversationModel",
+    "AnalystMessageModel",
 ]

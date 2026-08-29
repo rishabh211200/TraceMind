@@ -9,6 +9,7 @@ import { SimulatorView } from './views/SimulatorView';
 import { AnomaliesView } from './views/AnomaliesView';
 import { RootCauseView } from './views/RootCauseView';
 import { OptimizerView } from './views/OptimizerView';
+import { AnalystView } from './views/AnalystView';
 
 export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
@@ -84,6 +85,10 @@ export const App: React.FC = () => {
           <OptimizerView />
         )}
 
+        {activeTab === 'analyst' && (
+          <AnalystView />
+        )}
+
         {activeTab === 'services' && (
           <ServicesView initialServiceName={selectedService} />
         )}
@@ -95,7 +100,7 @@ export const App: React.FC = () => {
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs font-mono text-slate-500">
-        TraceMind &bull; AI-Powered Distributed Workflow Intelligence Platform &bull; Milestone 9
+        TraceMind &bull; AI-Powered Distributed Workflow Intelligence Platform &bull; Milestone 10
       </footer>
     </div>
   );
