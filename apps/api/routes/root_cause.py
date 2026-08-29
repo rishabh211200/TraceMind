@@ -129,6 +129,13 @@ async def analyze_root_cause(
         workflow_definition_id=payload.workflow_definition_id,
     )
 
+    from packages.observability.metrics import record_root_cause
+
+    record_root_cause(
+        category=str(report.incident_category),
+        culprit_service=str(report.culprit_service),
+    )
+
     # Persist if requested
     if payload.persist_to_db:
         repo = RootCauseRepository(session)

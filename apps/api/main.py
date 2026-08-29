@@ -3,7 +3,7 @@
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, status
+from fastapi import FastAPI, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -23,6 +23,7 @@ from apps.api.routes import (
 )
 from packages.common.config import get_settings
 from packages.common.logging import configure_logging, get_logger
+from packages.observability.middleware import TracingAndMetricsMiddleware
 
 settings = get_settings()
 configure_logging(log_level=settings.log_level)
@@ -58,6 +59,10 @@ OPENAPI_TAGS = [
         "description": "Tool-grounded conversational AI assistant for workflow diagnostics, incident briefings, and optimization reasoning.",
     },
     {
+        "name": "Observability & Metrics",
+        "description": "OpenTelemetry tracing hooks, Prometheus metrics exposition (/metrics), and system runtime monitoring.",
+    },
+    {
         "name": "Simulator & Chaos Controls",
         "description": "Deterministic synthetic trace simulation generation, chaos scenario catalog, and targeted chaos injection.",
     },
@@ -81,7 +86,7 @@ async def lifespan(app: FastAPI):
     """FastAPI application lifecycle management: database init and connection cleanup."""
     logger.info(
         "starting_tracemind_api",
-        version="0.10.0",
+        version="0.11.0",
         environment=settings.environment,
         debug=settings.debug,
     )
@@ -100,7 +105,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TraceMind API",
     description="AI-Powered Distributed Workflow Intelligence Platform REST API",
-    version="0.10.0",
+    version="0.11.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -117,6 +122,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount OpenTelemetry Tracing & Prometheus Metrics Middleware
+app.add_middleware(TracingAndMetricsMiddleware)
+
 # Register standardized error handlers (RFC 7807)
 register_exception_handlers(app)
 
@@ -132,6 +140,22 @@ app.include_router(traces_router)  # Preserved for Milestone 2 client compatibil
 app.include_router(simulator_router)
 app.include_router(services_router)
 app.include_router(incidents_router)
+
+
+@app.get(
+    "/metrics",
+    tags=["Observability & Metrics"],
+    summary="Prometheus Metrics Exposition Endpoint",
+    response_class=Response,
+)
+async def metrics() -> Response:
+    """Expose Prometheus formatted operational metrics for scraping."""
+    import prometheus_client
+
+    return Response(
+        content=prometheus_client.generate_latest(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+    )
 
 
 class HealthResponse(BaseModel):
@@ -152,10 +176,11 @@ async def root_metadata() -> dict[str, Any]:
     """Retrieve top-level API metadata and documentation links."""
     return {
         "service": "TraceMind Distributed Workflow Intelligence API",
-        "version": "0.9.0",
+        "version": "0.11.0",
         "environment": settings.environment,
         "docs": "/docs",
         "openapi": "/openapi.json",
+        "metrics": "/metrics",
         "health": "/api/v1/health",
     }
 
@@ -171,7 +196,7 @@ async def health_check() -> HealthResponse:
     """Retrieve operational status for API and system modules."""
     return HealthResponse(
         status="healthy",
-        version="0.9.0",
+        version="0.11.0",
         environment=settings.environment,
         modules={
             "api": "operational",
@@ -182,5 +207,7 @@ async def health_check() -> HealthResponse:
             "anomaly_detector": "ready",
             "root_cause_engine": "operational",
             "optimizer": "operational",
+            "analyst": "operational",
+            "observability": "operational",
         },
     )

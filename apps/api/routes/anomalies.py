@@ -51,9 +51,19 @@ async def detect_anomalies(
     )
 
     # 2. Map to Response Models
+    from packages.observability.metrics import record_anomaly
+
     anomaly_responses: list[AnomalyResponse] = []
     for anom in anomalies:
         sev = detector.get_severity_label(anom.score)
+        record_anomaly(
+            detector_type=str(
+                anom.anomaly_type.value
+                if hasattr(anom.anomaly_type, "value")
+                else anom.anomaly_type
+            ),
+            severity=sev,
+        )
         resp = AnomalyResponse(
             id=anom.id,
             execution_id=anom.execution_id,

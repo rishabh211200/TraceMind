@@ -42,6 +42,12 @@ async def predict_execution(
         db_events = await event_repo.get_trace_events(req.execution_id)
         raw_events = [e.__dict__ for e in db_events]
 
+    import time
+
+    from packages.observability.metrics import record_ml_inference
+
+    t_start = time.perf_counter()
+
     # 1. In-flight feature extraction
     extractor = TraceFeatureExtractor()
     features = extractor.extract_features_from_events(raw_events, as_of_step=req.as_of_step)
@@ -55,6 +61,10 @@ async def predict_execution(
 
     # 3. TreeSHAP feature attributions
     contributions = explainer.explain_instance(features, top_k=5)
+    inference_duration = time.perf_counter() - t_start
+    record_ml_inference(
+        "xgboost_workflow_predictor", "predict_failure", inference_duration, risk_level
+    )
     contrib_responses = [
         FeatureContributionResponse(
             feature_name=c.feature_name,

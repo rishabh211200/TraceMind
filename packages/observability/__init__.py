@@ -1,0 +1,71 @@
+"""TraceMind Application Observability package: OpenTelemetry, Prometheus metrics & correlation IDs."""
+
+from packages.observability.metrics import (
+    ANALYST_GROUNDING_SCORE,
+    ANALYST_QUERIES_TOTAL,
+    ANOMALIES_DETECTED_TOTAL,
+    DATABASE_CONNECTIONS_ACTIVE,
+    HTTP_REQUEST_DURATION_SECONDS,
+    HTTP_REQUESTS_TOTAL,
+    KAFKA_MESSAGES_INGESTED_TOTAL,
+    ML_INFERENCE_DURATION_SECONDS,
+    ML_PREDICTIONS_TOTAL,
+    ROOT_CAUSE_DIAGNOSES_TOTAL,
+    WORKFLOW_OPTIMIZATIONS_TOTAL,
+    record_analyst_query,
+    record_anomaly,
+    record_http_request,
+    record_kafka_ingestion,
+    record_ml_inference,
+    record_optimization,
+    record_root_cause,
+    set_active_database_connections,
+)
+from packages.observability.middleware import (
+    TracingAndMetricsMiddleware,
+    normalize_endpoint_path,
+)
+from packages.observability.tracer import (
+    format_w3c_traceparent,
+    generate_span_id,
+    generate_trace_id,
+    get_tracer,
+    init_tracer,
+    parse_w3c_traceparent,
+    trace_async_span,
+    trace_span,
+)
+
+__all__ = [
+    "HTTP_REQUESTS_TOTAL",
+    "HTTP_REQUEST_DURATION_SECONDS",
+    "ML_INFERENCE_DURATION_SECONDS",
+    "ML_PREDICTIONS_TOTAL",
+    "ANOMALIES_DETECTED_TOTAL",
+    "ROOT_CAUSE_DIAGNOSES_TOTAL",
+    "WORKFLOW_OPTIMIZATIONS_TOTAL",
+    "ANALYST_QUERIES_TOTAL",
+    "ANALYST_GROUNDING_SCORE",
+    "KAFKA_MESSAGES_INGESTED_TOTAL",
+    "DATABASE_CONNECTIONS_ACTIVE",
+    "record_http_request",
+    "record_ml_inference",
+    "record_anomaly",
+    "record_root_cause",
+    "record_optimization",
+    "record_analyst_query",
+    "record_kafka_ingestion",
+    "set_active_database_connections",
+    "TracingAndMetricsMiddleware",
+    "normalize_endpoint_path",
+    "init_tracer",
+    "get_tracer",
+    "trace_span",
+    "trace_async_span",
+    "generate_trace_id",
+    "generate_span_id",
+    "format_w3c_traceparent",
+    "parse_w3c_traceparent",
+]
+
+__version__ = "0.11.0"
