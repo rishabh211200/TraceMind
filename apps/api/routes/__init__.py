@@ -1,5 +1,6 @@
 """FastAPI route modules package export."""
 
+from apps.api.routes.analyst import router as analyst_router
 from apps.api.routes.anomalies import router as anomalies_router
 from apps.api.routes.executions import router as executions_router
 from apps.api.routes.incidents import router as incidents_router
@@ -22,4 +23,5 @@ __all__ = [
     "anomalies_router",
     "root_cause_router",
     "optimizer_router",
+    "analyst_router",
 ]
