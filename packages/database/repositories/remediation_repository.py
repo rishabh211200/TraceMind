@@ -28,9 +28,13 @@ class RemediationRepository:
     # Policies
     # -------------------------------------------------------------------------
 
-    async def get_policy(self, policy_id: str) -> RemediationPolicyModel | None:
+    async def get_policy(
+        self, policy_id: str, tenant_id: str | None = None
+    ) -> RemediationPolicyModel | None:
         """Fetch policy by ID."""
         stmt = select(RemediationPolicyModel).where(RemediationPolicyModel.id == policy_id)
+        if tenant_id:
+            stmt = stmt.where(RemediationPolicyModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -40,9 +44,12 @@ class RemediationRepository:
         active_only: bool = True,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> list[RemediationPolicyModel]:
         """List policies with optional workflow filter."""
         stmt = select(RemediationPolicyModel)
+        if tenant_id:
+            stmt = stmt.where(RemediationPolicyModel.tenant_id == tenant_id)
         if active_only:
             stmt = stmt.where(RemediationPolicyModel.is_active.is_(True))
         if workflow_definition_id:
@@ -54,9 +61,12 @@ class RemediationRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def upsert_policy(self, policy: RemediationPolicy) -> RemediationPolicyModel:
+    async def upsert_policy(
+        self, policy: RemediationPolicy, tenant_id: str = "tenant_system"
+    ) -> RemediationPolicyModel:
         """Insert or update a remediation policy."""
-        existing = await self.get_policy(policy.id)
+        t_id = getattr(policy, "tenant_id", tenant_id) or tenant_id
+        existing = await self.get_policy(policy.id, tenant_id=t_id)
         if existing:
             existing.name = policy.name
             existing.workflow_definition_id = policy.workflow_definition_id
@@ -72,6 +82,7 @@ class RemediationRepository:
 
         record = RemediationPolicyModel(
             id=policy.id,
+            tenant_id=t_id,
             name=policy.name,
             workflow_definition_id=policy.workflow_definition_id,
             incident_category=policy.incident_category,
@@ -87,9 +98,11 @@ class RemediationRepository:
         await self.session.flush()
         return record
 
-    async def delete_policy(self, policy_id: str) -> bool:
+    async def delete_policy(self, policy_id: str, tenant_id: str | None = None) -> bool:
         """Deactivate or remove a policy."""
         stmt = delete(RemediationPolicyModel).where(RemediationPolicyModel.id == policy_id)
+        if tenant_id:
+            stmt = stmt.where(RemediationPolicyModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         await self.session.flush()
         rowcount = getattr(result, "rowcount", 0)
@@ -99,26 +112,36 @@ class RemediationRepository:
     # Action Plans
     # -------------------------------------------------------------------------
 
-    async def get_plan(self, plan_id: str) -> RemediationActionPlanModel | None:
+    async def get_plan(
+        self, plan_id: str, tenant_id: str | None = None
+    ) -> RemediationActionPlanModel | None:
         """Fetch remediation plan by ID."""
         stmt = select(RemediationActionPlanModel).where(RemediationActionPlanModel.id == plan_id)
+        if tenant_id:
+            stmt = stmt.where(RemediationActionPlanModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_plan_by_idempotency_key(
-        self, idempotency_key: str
+        self, idempotency_key: str, tenant_id: str | None = None
     ) -> RemediationActionPlanModel | None:
         """Fetch remediation plan by unique idempotency key."""
         stmt = select(RemediationActionPlanModel).where(
             RemediationActionPlanModel.idempotency_key == idempotency_key
         )
+        if tenant_id:
+            stmt = stmt.where(RemediationActionPlanModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def save_plan(self, plan: RemediationActionPlan) -> RemediationActionPlanModel:
+    async def save_plan(
+        self, plan: RemediationActionPlan, tenant_id: str = "tenant_system"
+    ) -> RemediationActionPlanModel:
         """Persist a new remediation action plan."""
+        t_id = getattr(plan, "tenant_id", tenant_id) or tenant_id
         record = RemediationActionPlanModel(
             id=plan.id,
+            tenant_id=t_id,
             policy_id=plan.policy_id,
             workflow_definition_id=plan.workflow_definition_id,
             incident_id=plan.incident_id,
@@ -160,6 +183,7 @@ class RemediationRepository:
         post_state: dict[str, Any] | None = None,
         post_health_metrics: dict[str, Any] | None = None,
         execution_error: str | None = None,
+        tenant_id: str | None = None,
     ) -> RemediationActionPlanModel | None:
         """Atomically update plan execution status and metrics."""
         values: dict[str, Any] = {"status": status.value}
@@ -180,9 +204,11 @@ class RemediationRepository:
             .values(**values)
             .execution_options(synchronize_session="fetch")
         )
+        if tenant_id:
+            stmt = stmt.where(RemediationActionPlanModel.tenant_id == tenant_id)
         await self.session.execute(stmt)
         await self.session.flush()
-        return await self.get_plan(plan_id)
+        return await self.get_plan(plan_id, tenant_id=tenant_id)
 
     async def list_plans(
         self,
@@ -191,10 +217,15 @@ class RemediationRepository:
         execution_mode: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> tuple[list[RemediationActionPlanModel], int]:
         """List remediation plans with filtering and total count."""
         base_stmt = select(RemediationActionPlanModel)
         count_stmt = select(func.count()).select_from(RemediationActionPlanModel)
+
+        if tenant_id:
+            base_stmt = base_stmt.where(RemediationActionPlanModel.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(RemediationActionPlanModel.tenant_id == tenant_id)
 
         if workflow_definition_id:
             base_stmt = base_stmt.where(
@@ -239,10 +270,12 @@ class RemediationRepository:
         timestamp: datetime,
         previous_hash: str,
         entry_hash: str,
+        tenant_id: str = "tenant_system",
     ) -> RemediationAuditLedgerModel:
         """Persist a cryptographic audit ledger entry."""
         record = RemediationAuditLedgerModel(
             entry_id=entry_id,
+            tenant_id=tenant_id,
             plan_id=plan_id,
             event_type=event_type,
             actor=actor,
@@ -260,10 +293,15 @@ class RemediationRepository:
         plan_id: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> tuple[list[RemediationAuditLedgerModel], int]:
         """List audit ledger records in chronological order."""
         base_stmt = select(RemediationAuditLedgerModel)
         count_stmt = select(func.count()).select_from(RemediationAuditLedgerModel)
+
+        if tenant_id:
+            base_stmt = base_stmt.where(RemediationAuditLedgerModel.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(RemediationAuditLedgerModel.tenant_id == tenant_id)
 
         if plan_id:
             base_stmt = base_stmt.where(RemediationAuditLedgerModel.plan_id == plan_id)

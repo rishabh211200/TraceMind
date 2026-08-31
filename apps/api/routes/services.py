@@ -5,6 +5,10 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.exceptions import EntityNotFoundException
 from apps.api.schemas.service import (
     ServiceHealthResponse,
@@ -16,6 +20,7 @@ from apps.api.schemas.service import (
 from packages.database.repositories.service_repository import ServiceRepository
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 router = APIRouter(prefix="/api/v1/services", tags=["Services & Telemetry"])
 
@@ -42,10 +47,11 @@ def _to_service_response(s) -> ServiceResponse:
 )
 async def list_services(
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[ServiceResponse]:
     """Retrieve all registered business microservices and infrastructure components."""
     repo = ServiceRepository(session)
-    services = await repo.list_services()
+    services = await repo.list_services(tenant_id=ctx.tenant_id)
     return [_to_service_response(s) for s in services]
 
 
@@ -56,6 +62,7 @@ async def list_services(
 )
 async def get_service_topology(
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ServiceTopologyResponse:
     """Retrieve full system dependency graph with nodes and directed dependency edges."""
     repo = ServiceRepository(session)
@@ -72,10 +79,13 @@ async def get_telemetry_summary(
     start_time: datetime | None = Query(None, description="Start timestamp in UTC"),
     end_time: datetime | None = Query(None, description="End timestamp in UTC"),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[ServiceHealthResponse]:
     """Calculate and aggregate operational health and latency percentiles across all services."""
     repo = TraceEventRepository(session)
-    summaries = await repo.get_service_telemetry_summary(start_time=start_time, end_time=end_time)
+    summaries = await repo.get_service_telemetry_summary(
+        start_time=start_time, end_time=end_time, tenant_id=ctx.tenant_id
+    )
     return [ServiceHealthResponse(**s) for s in summaries]
 
 
@@ -87,10 +97,11 @@ async def get_telemetry_summary(
 async def get_service(
     service_name: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ServiceResponse:
     """Retrieve details, baseline performance profile, and dependencies for a service."""
     repo = ServiceRepository(session)
-    service = await repo.get_service(service_name)
+    service = await repo.get_service(service_name, tenant_id=ctx.tenant_id)
     if not service:
         raise EntityNotFoundException("Service", service_name)
     return _to_service_response(service)
@@ -100,15 +111,17 @@ async def get_service(
     "/{service_name}",
     response_model=ServiceResponse,
     summary="Update Service Baseline Profile",
+    dependencies=[Depends(require_permission(Permission.SERVICES_WRITE))],
 )
 async def update_service(
     service_name: str,
     payload: ServiceUpdate,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ServiceResponse:
     """Update baseline parameters (capacity, latency, failure rate, timeout, retries) for a service."""
     repo = ServiceRepository(session)
-    existing = await repo.get_service(service_name)
+    existing = await repo.get_service(service_name, tenant_id=ctx.tenant_id)
     if not existing:
         raise EntityNotFoundException("Service", service_name)
 
@@ -116,7 +129,7 @@ async def update_service(
     if "metadata" in updates:
         updates["metadata_"] = updates.pop("metadata")
 
-    updated = await repo.update_service(service_name, updates)
+    updated = await repo.update_service(service_name, updates, tenant_id=ctx.tenant_id)
     return _to_service_response(updated)
 
 
@@ -130,11 +143,12 @@ async def get_service_latency(
     start_time: datetime | None = Query(None, description="Start timestamp in UTC"),
     end_time: datetime | None = Query(None, description="End timestamp in UTC"),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ServiceLatencyStatsResponse:
     """Compute database-side P50, P90, P95, P99, Mean, Min, and Max latency for a service."""
     repo = TraceEventRepository(session)
     stats = await repo.get_service_latency_stats(
-        service=service_name, start_time=start_time, end_time=end_time
+        service=service_name, start_time=start_time, end_time=end_time, tenant_id=ctx.tenant_id
     )
     return ServiceLatencyStatsResponse(**stats)
 
@@ -149,10 +163,11 @@ async def get_service_health(
     start_time: datetime | None = Query(None, description="Start timestamp in UTC"),
     end_time: datetime | None = Query(None, description="End timestamp in UTC"),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ServiceHealthResponse:
     """Retrieve call volume, error rate, retry frequency, and timeout count for a service."""
     repo = TraceEventRepository(session)
     health = await repo.get_service_health(
-        service=service_name, start_time=start_time, end_time=end_time
+        service=service_name, start_time=start_time, end_time=end_time, tenant_id=ctx.tenant_id
     )
     return ServiceHealthResponse(**health)

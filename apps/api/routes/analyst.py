@@ -8,6 +8,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.schemas.analyst import (
     AnalystStatsResponse,
     ChatRequest,
@@ -25,8 +29,10 @@ from apps.ml.analyst.engine import AIAnalystEngine
 from apps.ml.analyst.llm_client import MockLLMClient, OpenAILLMClient
 from apps.ml.analyst.models import ChatMessage, LLMConfig
 from packages.common.logging import get_logger
+from packages.common.security.context import set_current_tenant_context
 from packages.database.repositories.analyst_repository import AnalystRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 logger = get_logger("tracemind.api.analyst")
 
@@ -57,20 +63,23 @@ def _resolve_provider(
     response_model=ChatResponse,
     status_code=status.HTTP_200_OK,
     summary="Conversational diagnostic chat (synchronous)",
+    dependencies=[Depends(require_permission(Permission.ANALYST_EXECUTE))],
 )
 async def chat(
     payload: ChatRequest,
     db: AsyncSession = Depends(get_db_session),
     engine: AIAnalystEngine = Depends(get_analyst_engine),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ChatResponse:
     """Process a natural language diagnostic query, execute agentic tools, and return a grounded response."""
     repo = AnalystRepository(db)
     conv_id = payload.conversation_id
+    set_current_tenant_context(ctx)
 
     # 1. Retrieve or initialize conversation session
     history_messages: list[ChatMessage] = []
     if conv_id and payload.persist:
-        conv = await repo.get_conversation(conv_id)
+        conv = await repo.get_conversation(conv_id, tenant_id=ctx.tenant_id)
         if conv:
             for m in conv.messages:
                 history_messages.append(
@@ -86,12 +95,14 @@ async def chat(
                 workflow_definition_id=payload.workflow_definition_id,
                 execution_id=payload.execution_id,
                 conversation_id=conv_id,
+                tenant_id=ctx.tenant_id,
             )
     elif payload.persist:
         conv = await repo.create_conversation(
             title=payload.query[:60],
             workflow_definition_id=payload.workflow_definition_id,
             execution_id=payload.execution_id,
+            tenant_id=ctx.tenant_id,
         )
         conv_id = conv.id
 
@@ -125,6 +136,7 @@ async def chat(
             conversation_id=conv_id,
             role="user",
             content=payload.query,
+            tenant_id=ctx.tenant_id,
         )
         await repo.add_message(
             conversation_id=conv_id,
@@ -146,6 +158,7 @@ async def chat(
             ],
             citations=[c.to_dict() for c in response.grounding_report.citations],
             grounding_score=response.grounding_report.grounding_score,
+            tenant_id=ctx.tenant_id,
         )
 
     return ChatResponse(
@@ -191,14 +204,17 @@ async def chat(
 @router.post(
     "/chat/stream",
     summary="Conversational diagnostic chat (Server-Sent Events streaming)",
+    dependencies=[Depends(require_permission(Permission.ANALYST_EXECUTE))],
 )
 async def chat_stream(
     payload: ChatRequest,
     engine: AIAnalystEngine = Depends(get_analyst_engine),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> StreamingResponse:
     """Stream AI Analyst generation tokens, tool executions, and grounding reports via SSE."""
     provider_str = _resolve_provider(payload.provider)
     cfg = LLMConfig(provider=provider_str)
+    set_current_tenant_context(ctx)
 
     async def event_generator() -> AsyncGenerator[str, None]:
         async for chunk in engine.stream_chat(
@@ -230,6 +246,7 @@ async def list_conversations(
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[ConversationItemResponse]:
     """Retrieve historical conversation sessions with message counts."""
     repo = AnalystRepository(db)
@@ -238,6 +255,7 @@ async def list_conversations(
         execution_id=execution_id,
         limit=limit,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
     return [
         ConversationItemResponse(
@@ -261,10 +279,11 @@ async def list_conversations(
 async def get_conversation(
     conversation_id: str,
     db: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ConversationDetailResponse:
     """Retrieve full conversation transcript with messages, tool calls, and citations."""
     repo = AnalystRepository(db)
-    conv = await repo.get_conversation(conversation_id)
+    conv = await repo.get_conversation(conversation_id, tenant_id=ctx.tenant_id)
     if not conv:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -299,14 +318,16 @@ async def get_conversation(
     "/conversations/{conversation_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a conversation session",
+    dependencies=[Depends(require_permission(Permission.ANALYST_EXECUTE))],
 )
 async def delete_conversation(
     conversation_id: str,
     db: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> None:
     """Delete a conversation session and all its message history."""
     repo = AnalystRepository(db)
-    deleted = await repo.delete_conversation(conversation_id)
+    deleted = await repo.delete_conversation(conversation_id, tenant_id=ctx.tenant_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -321,6 +342,7 @@ async def delete_conversation(
 )
 async def list_tools(
     engine: AIAnalystEngine = Depends(get_analyst_engine),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[ToolDefinitionSchema]:
     """Retrieve JSON schema definitions for all invocable platform tools."""
     tools = engine.tool_registry.get_definitions()
@@ -341,10 +363,11 @@ async def list_tools(
 )
 async def get_stats(
     db: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> AnalystStatsResponse:
     """Retrieve conversation and message counts with average grounding score."""
     repo = AnalystRepository(db)
-    stats_data = await repo.get_stats()
+    stats_data = await repo.get_stats(tenant_id=ctx.tenant_id)
     return AnalystStatsResponse(
         total_conversations=stats_data["total_conversations"],
         total_messages=stats_data["total_messages"],

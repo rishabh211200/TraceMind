@@ -17,6 +17,9 @@ class AnomalyModel(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(
         String(64), primary_key=True, doc="Unique anomaly record identifier"
     )
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     execution_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("workflow_executions.id", ondelete="CASCADE"),
@@ -24,6 +27,7 @@ class AnomalyModel(Base, TimestampMixin):
         index=True,
         doc="Associated workflow execution ID",
     )
+
     workflow_definition_id: Mapped[str] = mapped_column(
         String(128),
         nullable=False,

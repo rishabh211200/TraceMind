@@ -14,27 +14,37 @@ class ServiceRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_service(self, name: str) -> ServiceModel | None:
+    async def get_service(self, name: str, tenant_id: str | None = None) -> ServiceModel | None:
         """Fetch service by unique name."""
         stmt = select(ServiceModel).where(ServiceModel.name == name)
+        if tenant_id:
+            stmt = stmt.where(ServiceModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_services(self) -> list[ServiceModel]:
+    async def list_services(self, tenant_id: str | None = None) -> list[ServiceModel]:
         """List all registered microservices and infrastructure components."""
         stmt = select(ServiceModel).order_by(ServiceModel.name.asc())
+        if tenant_id:
+            stmt = stmt.where(ServiceModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def upsert_service(self, data: dict[str, Any] | ServiceModel) -> ServiceModel:
+    async def upsert_service(
+        self, data: dict[str, Any] | ServiceModel, tenant_id: str = "tenant_system"
+    ) -> ServiceModel:
         """Insert or update service profile."""
         if isinstance(data, ServiceModel):
+            if not getattr(data, "tenant_id", None):
+                data.tenant_id = tenant_id
             service = await self.session.merge(data)
             await self.session.commit()
             return service
 
+        if "tenant_id" not in data:
+            data["tenant_id"] = tenant_id
         name = data["name"]
-        existing = await self.get_service(name)
+        existing = await self.get_service(name, tenant_id=data["tenant_id"])
         if existing:
             for k, v in data.items():
                 setattr(existing, k, v)
@@ -48,9 +58,11 @@ class ServiceRepository:
             await self.session.refresh(new_service)
             return new_service
 
-    async def update_service(self, name: str, updates: dict[str, Any]) -> ServiceModel | None:
+    async def update_service(
+        self, name: str, updates: dict[str, Any], tenant_id: str | None = None
+    ) -> ServiceModel | None:
         """Update fields on an existing service profile."""
-        service = await self.get_service(name)
+        service = await self.get_service(name, tenant_id=tenant_id)
         if not service:
             return None
 

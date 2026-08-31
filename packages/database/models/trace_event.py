@@ -25,6 +25,12 @@ class TraceEventModel(Base):
         doc="Event emission timestamp (TimescaleDB hypertable partition key)",
     )
 
+    tenant_id: Mapped[str] = mapped_column(
+        String(64),
+        default="tenant_system",
+        nullable=False,
+        doc="Owning multi-tenant organization ID",
+    )
     execution_id: Mapped[str] = mapped_column(
         String(64), nullable=False, doc="Parent workflow execution / trace ID"
     )
@@ -57,6 +63,7 @@ class TraceEventModel(Base):
     )
 
     __table_args__ = (
+        Index("ix_trace_events_tenant_ts", "tenant_id", "timestamp"),
         Index("ix_trace_events_exec_ts", "execution_id", "timestamp"),
         Index("ix_trace_events_svc_ts", "service", "timestamp"),
         Index("ix_trace_events_type_ts", "event_type", "timestamp"),

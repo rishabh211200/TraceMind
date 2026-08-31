@@ -41,6 +41,9 @@ class TraceEvent(BaseModel):
     """Canonical trace event emitted during workflow execution."""
 
     event_id: str = Field(default_factory=lambda: f"evt_{uuid4().hex[:12]}")
+    tenant_id: str = Field(
+        default="tenant_system", description="Owning multi-tenant organization ID"
+    )
     execution_id: str = Field(..., description="Unique workflow execution run ID")
     workflow_id: str = Field(..., description="Workflow definition identifier")
     timestamp: datetime = Field(

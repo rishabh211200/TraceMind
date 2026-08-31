@@ -11,6 +11,8 @@ from apps.api.exceptions import register_exception_handlers
 from apps.api.routes import (
     analyst_router,
     anomalies_router,
+    api_keys_router,
+    auth_router,
     executions_router,
     incidents_router,
     optimizer_router,
@@ -19,6 +21,7 @@ from apps.api.routes import (
     root_cause_router,
     services_router,
     simulator_router,
+    tenants_router,
     traces_router,
     workflows_router,
 )
@@ -31,6 +34,18 @@ configure_logging(log_level=settings.log_level)
 logger = get_logger("tracemind.api")
 
 OPENAPI_TAGS = [
+    {
+        "name": "Authentication & Governance",
+        "description": "Enterprise zero-trust user authentication, RS256 token issuance, single-use refresh token rotation, and credential revocation.",
+    },
+    {
+        "name": "Tenant Organizations & Governance",
+        "description": "Multi-tenant isolation boundaries, tenant provisioning, resource limits, and tenant user administration.",
+    },
+    {
+        "name": "API Keys & Programmatic Access",
+        "description": "High-entropy programmatic API key provisioning, permission scoping, listing, and revocation.",
+    },
     {
         "name": "Workflows",
         "description": "Workflow DAG definition registration, DAG cycle validation, execution listings, and aggregate metrics.",
@@ -91,7 +106,7 @@ async def lifespan(app: FastAPI):
     """FastAPI application lifecycle management: database init and connection cleanup."""
     logger.info(
         "starting_tracemind_api",
-        version="0.14.0",
+        version="0.15.0",
         environment=settings.environment,
         debug=settings.debug,
     )
@@ -110,7 +125,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TraceMind API",
     description="AI-Powered Distributed Workflow Intelligence Platform REST API",
-    version="0.14.0",
+    version="0.15.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -134,6 +149,9 @@ app.add_middleware(TracingAndMetricsMiddleware)
 register_exception_handlers(app)
 
 # Mount API Routers
+app.include_router(auth_router)
+app.include_router(tenants_router)
+app.include_router(api_keys_router)
 app.include_router(workflows_router)
 app.include_router(executions_router)
 app.include_router(predictions_router)

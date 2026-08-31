@@ -14,9 +14,13 @@ class ServiceModel(Base, TimestampMixin):
     __tablename__ = "services"
 
     name: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default="tenant_system", index=True
+    )
     service_type: Mapped[str] = mapped_column(
         String(32), default="business_microservice", nullable=False
     )
+
     capacity: Mapped[int] = mapped_column(Integer, default=100, nullable=False)
     baseline_latency_ms: Mapped[float] = mapped_column(Float, default=50.0, nullable=False)
     baseline_failure_rate: Mapped[float] = mapped_column(Float, default=0.005, nullable=False)

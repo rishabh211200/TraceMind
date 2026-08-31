@@ -335,3 +335,51 @@ Milestone 14 has been fully implemented, integrated, and verified against all ma
 ================================================================================
 ```
 
+---
+
+## Part 6: Comprehensive Architectural Assessment (M0–M14 Baseline) & Milestone 15 Proposal
+
+### 6.1 Evaluation Across 15 Platform Dimensions
+
+| Architecture Dimension | Current Status (M0–M14 Baseline) | Classification | Remaining Gap for Production Maturity |
+|---|---|---|---|
+| **1. Authentication & Identity** | No auth middleware; all API endpoints are publicly accessible without tokens. | **Missing** | Asymmetric JWT (RS256) & scoped API key authentication plane with Argon2id password hashing. |
+| **2. Multi-Tenancy & Isolation** | Single-tenant global namespace; no `tenant_id` on domain models, DB tables, or Kafka messages. | **Missing** | Tenant-scoped data isolation across database queries, caches, and rate-limiting quotas. |
+| **3. RBAC & Policy Governance** | Execution modes exist (`AUTONOMOUS`, `SUPERVISED`), but no role authorization protects sensitive endpoints. | **Missing** | Fine-grained RBAC matrix (`SUPER_ADMIN`, `TENANT_ADMIN`, `OPERATOR`, `AUDITOR`, `VIEWER`) protecting actuation & policies. |
+| **4. Secrets & Key Management** | Raw `.env` strings; no KMS abstraction, key rotation, or field-level encryption. | **Simulated / Mocked** | Field-level AES-256-GCM envelope encryption for audit payloads and webhook signing secrets. |
+| **5. API Security & Rate Limiting** | No token bucket or sliding-window rate limiters; gateway vulnerable to request flooding. | **Missing** | Distributed sliding-window rate limiting per tenant and per endpoint with RFC 7807 429 responses. |
+| **6. Reliability & Backpressure** | Discrete-event simulator models queueing/retries; Kafka worker has batching, but gateway lacks circuit trips. | **Demonstrated (Simulated)** | API gateway adaptive throttling under backend saturation. |
+| **7. Event / Audit Guarantees** | Immutable SHA-256 hash chains in `CryptographicAuditLedger` verified with 100% integrity. | **Demonstrated (Live)** | Multi-tenant tenant-scoped cryptographic ledgers. |
+| **8. Remediation Observability** | OpenTelemetry spans & Prometheus metrics for M0–M11; M14 emits structured structlog events. | **Demonstrated (Live)** | Prometheus metrics for plan synthesis rates, actuation latencies, and rollback counters. |
+| **9. Deployment & Containers** | Hardened multi-stage Dockerfiles (non-root UID 10001), Compose, and Kubernetes manifests with HPA. | **Demonstrated (Live)** | Cloud-native multi-tenant helm charts with ingress TLS termination. |
+| **10. Disaster Recovery & Retention**| Hypertables partitioned by time; no automated cold-tier archiving or PITR snapshot automation. | **Architecturally Prepared** | Automated retention policies and cold Parquet archiving to object storage. |
+| **11. Scalability beyond M13** | Multi-process simulator, streaming generators, and vectorized inference tested up to 1M+ traces. | **Demonstrated (Live)** | Multi-tenant partitioned hypertable query scaling under concurrent tenant workloads. |
+| **12. Integration Boundaries** | `InMemoryRoutingActuator` is live; `HttpGatewayActuator` and `WebhookActuator` are dry-run / config-gated. | **Dry-Run / Config-Gated** | External actuators remain dry-run by design; secured with HMAC-SHA256 signature verification. |
+| **13. Human Approval Workflows** | M14 staged plan execution with operator review modals in React control center. | **Demonstrated (Live)** | Operator identity binding via RBAC and JWT token claims. |
+| **14. ML & Model Governance** | Static serialized XGBoost & Isolation Forest artifacts; no automated drift monitoring or retraining. | **Architecturally Prepared** | Statistical drift monitoring (Kolmogorov-Smirnov) and shadow model deployment. |
+| **15. Testing & Failure Injection** | Comprehensive 140-test suite with 100-permutation safety invariant fuzzing and chaos presets. | **Demonstrated (Live)** | Adversarial penetration testing against JWT tampering, token replay, and cross-tenant data leaks. |
+
+---
+
+### 6.2 Evaluation of Candidate Directions for Milestone 15
+
+#### Candidate 1: Enterprise Multi-Tenancy, Zero-Trust Security & RBAC Governance (Recommended)
+- **Scope**: Multi-tenant namespace isolation across all domain models, database tables, and repositories; Asymmetric JWT (RS256) & scoped API key authentication; Fine-grained RBAC permission matrix; Distributed sliding-window rate limiting; Field-level AES-256-GCM envelope encryption.
+- **Engineering Value**: **Critical / Highest Priority**. Transforms TraceMind from an unsecured single-tenant prototype into an enterprise-deployable distributed intelligence platform ready for SOC2, multi-team SaaS, and enterprise deployment.
+- **Risk**: High cross-cutting surface area touching database models, API routes, and frontend context. Mitigated through backward-compatible dev credentials, Alembic migrations, and automated cross-tenant security fuzzing.
+
+#### Candidate 2: Continuous MLOps, Concept Drift Detection & Online Model Governance
+- **Scope**: Online drift monitoring (KS-test, PSI), shadow model canary routing, automated retraining triggers.
+- **Evaluation**: High ML value, but secondary to fundamental enterprise security and tenant isolation.
+
+#### Candidate 3: Automated Data Lifecycle, Continuous Aggregation & Disaster Recovery
+- **Scope**: TimescaleDB continuous aggregates, automated data retention policies, cold Parquet archiving.
+- **Evaluation**: Valuable storage optimization, but lower strategic urgency than enterprise security.
+
+---
+
+### 6.3 Strategic Recommendation
+
+**Candidate 1: Enterprise Multi-Tenancy, Zero-Trust Security, RBAC Governance & API Security** is officially recommended for Milestone 15.
+
+

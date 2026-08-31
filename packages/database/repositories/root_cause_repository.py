@@ -21,13 +21,17 @@ class RootCauseRepository:
     async def create_root_cause_report(
         self,
         report_data: dict[str, Any] | RootCauseModel,
+        tenant_id: str = "tenant_system",
     ) -> RootCauseModel:
         """Persist a newly generated root-cause diagnosis."""
         if isinstance(report_data, RootCauseModel):
+            if not getattr(report_data, "tenant_id", None):
+                report_data.tenant_id = tenant_id
             model = report_data
         else:
             model = RootCauseModel(
                 id=report_data.get("id") or f"rc_{uuid4().hex[:10]}",
+                tenant_id=report_data.get("tenant_id", tenant_id),
                 execution_id=report_data["execution_id"],
                 workflow_definition_id=report_data.get(
                     "workflow_definition_id", "order_fulfillment"
@@ -46,25 +50,32 @@ class RootCauseRepository:
         logger.info(
             "root_cause_report_created",
             id=model.id,
+            tenant_id=model.tenant_id,
             execution_id=model.execution_id,
             culprit=model.culprit_service,
             category=model.incident_category,
         )
         return model
 
-    async def get_by_id(self, id: str) -> RootCauseModel | None:
+    async def get_by_id(self, id: str, tenant_id: str | None = None) -> RootCauseModel | None:
         """Fetch a single root-cause diagnosis by its unique ID."""
         stmt = select(RootCauseModel).where(RootCauseModel.id == id)
+        if tenant_id:
+            stmt = stmt.where(RootCauseModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_execution_id(self, execution_id: str) -> list[RootCauseModel]:
+    async def get_by_execution_id(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> list[RootCauseModel]:
         """Fetch all root-cause diagnoses associated with a workflow execution."""
         stmt = (
             select(RootCauseModel)
             .where(RootCauseModel.execution_id == execution_id)
             .order_by(RootCauseModel.analyzed_at.desc())
         )
+        if tenant_id:
+            stmt = stmt.where(RootCauseModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -76,10 +87,15 @@ class RootCauseRepository:
         min_confidence: float | None = None,
         limit: int = 50,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> tuple[list[RootCauseModel], int]:
         """Search and filter historical root-cause diagnoses with pagination."""
         stmt = select(RootCauseModel)
         count_stmt = select(func.count()).select_from(RootCauseModel)
+
+        if tenant_id:
+            stmt = stmt.where(RootCauseModel.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(RootCauseModel.tenant_id == tenant_id)
 
         if workflow_definition_id:
             stmt = stmt.where(RootCauseModel.workflow_definition_id == workflow_definition_id)
@@ -105,9 +121,11 @@ class RootCauseRepository:
 
         return items, total
 
-    async def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self, tenant_id: str | None = None) -> dict[str, Any]:
         """Aggregate summary statistics across all root-cause diagnoses."""
         count_stmt = select(func.count()).select_from(RootCauseModel)
+        if tenant_id:
+            count_stmt = count_stmt.where(RootCauseModel.tenant_id == tenant_id)
         total_res = await self.session.execute(count_stmt)
         total_reports = int(total_res.scalar_one() or 0)
 
@@ -123,17 +141,22 @@ class RootCauseRepository:
         cat_stmt = select(
             RootCauseModel.incident_category,
             func.count(RootCauseModel.id),
-        ).group_by(RootCauseModel.incident_category)
+        )
+        if tenant_id:
+            cat_stmt = cat_stmt.where(RootCauseModel.tenant_id == tenant_id)
+        cat_stmt = cat_stmt.group_by(RootCauseModel.incident_category)
         cat_res = await self.session.execute(cat_stmt)
         by_category = {row[0]: row[1] for row in cat_res.all()}
 
         # Counts by culprit service
+        culprit_stmt = select(
+            RootCauseModel.culprit_service,
+            func.count(RootCauseModel.id),
+        )
+        if tenant_id:
+            culprit_stmt = culprit_stmt.where(RootCauseModel.tenant_id == tenant_id)
         culprit_stmt = (
-            select(
-                RootCauseModel.culprit_service,
-                func.count(RootCauseModel.id),
-            )
-            .group_by(RootCauseModel.culprit_service)
+            culprit_stmt.group_by(RootCauseModel.culprit_service)
             .order_by(func.count(RootCauseModel.id).desc())
             .limit(10)
         )
@@ -142,6 +165,8 @@ class RootCauseRepository:
 
         # Mean confidence
         mean_stmt = select(func.avg(RootCauseModel.confidence))
+        if tenant_id:
+            mean_stmt = mean_stmt.where(RootCauseModel.tenant_id == tenant_id)
         mean_res = await self.session.execute(mean_stmt)
         mean_conf = float(mean_res.scalar_one() or 0.0)
 

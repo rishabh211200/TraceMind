@@ -6,6 +6,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.exceptions import ConflictException, EntityNotFoundException, ValidationException
 from apps.api.schemas.common import PaginationMeta
 from apps.api.schemas.execution import ExecutionListResponse, ExecutionSummaryResponse
@@ -17,6 +21,7 @@ from apps.api.schemas.workflow import (
 )
 from packages.database.repositories.workflow_repository import WorkflowRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 router = APIRouter(prefix="/api/v1/workflows", tags=["Workflows"])
 
@@ -105,10 +110,11 @@ def _to_workflow_response(wf) -> WorkflowDefinitionResponse:
 )
 async def list_workflows(
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[WorkflowDefinitionResponse]:
     """List all registered workflow DAG topologies."""
     repo = WorkflowRepository(session)
-    definitions = await repo.list_definitions()
+    definitions = await repo.list_definitions(tenant_id=ctx.tenant_id)
     return [_to_workflow_response(wf) for wf in definitions]
 
 
@@ -117,14 +123,16 @@ async def list_workflows(
     response_model=WorkflowDefinitionResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Register Workflow Definition",
+    dependencies=[Depends(require_permission(Permission.WORKFLOWS_WRITE))],
 )
 async def create_workflow(
     payload: WorkflowDefinitionCreate,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> WorkflowDefinitionResponse:
     """Register a new workflow DAG definition with validation against cycles and invalid references."""
     repo = WorkflowRepository(session)
-    existing = await repo.get_definition(payload.id)
+    existing = await repo.get_definition(payload.id, tenant_id=ctx.tenant_id)
     if existing:
         raise ConflictException(f"Workflow definition with ID '{payload.id}' already exists.")
 
@@ -135,6 +143,7 @@ async def create_workflow(
 
     data = {
         "id": payload.id,
+        "tenant_id": ctx.tenant_id,
         "name": payload.name,
         "version": payload.version,
         "description": payload.description,
@@ -142,7 +151,7 @@ async def create_workflow(
         "edges": edges_dict,
         "metadata_": payload.metadata,
     }
-    wf = await repo.upsert_definition(data)
+    wf = await repo.upsert_definition(data, tenant_id=ctx.tenant_id)
     return _to_workflow_response(wf)
 
 
@@ -154,10 +163,11 @@ async def create_workflow(
 async def get_workflow(
     workflow_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> WorkflowDefinitionResponse:
     """Retrieve details and DAG topology of a specific workflow definition."""
     repo = WorkflowRepository(session)
-    wf = await repo.get_definition(workflow_id)
+    wf = await repo.get_definition(workflow_id, tenant_id=ctx.tenant_id)
     if not wf:
         raise EntityNotFoundException("WorkflowDefinition", workflow_id)
     return _to_workflow_response(wf)
@@ -167,15 +177,17 @@ async def get_workflow(
     "/{workflow_id}",
     response_model=WorkflowDefinitionResponse,
     summary="Update Workflow Definition",
+    dependencies=[Depends(require_permission(Permission.WORKFLOWS_WRITE))],
 )
 async def update_workflow(
     workflow_id: str,
     payload: WorkflowDefinitionUpdate,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> WorkflowDefinitionResponse:
     """Update workflow definition metadata, nodes, and edges with DAG validation."""
     repo = WorkflowRepository(session)
-    wf = await repo.get_definition(workflow_id)
+    wf = await repo.get_definition(workflow_id, tenant_id=ctx.tenant_id)
     if not wf:
         raise EntityNotFoundException("WorkflowDefinition", workflow_id)
 
@@ -193,7 +205,7 @@ async def update_workflow(
     if payload.nodes is not None or payload.edges is not None:
         validate_workflow_dag(nodes_dict, edges_dict)
 
-    update_data: dict[str, Any] = {"id": workflow_id}
+    update_data: dict[str, Any] = {"id": workflow_id, "tenant_id": ctx.tenant_id}
     if payload.name is not None:
         update_data["name"] = payload.name
     if payload.version is not None:
@@ -207,7 +219,7 @@ async def update_workflow(
     if payload.metadata is not None:
         update_data["metadata_"] = payload.metadata
 
-    updated_wf = await repo.upsert_definition(update_data)
+    updated_wf = await repo.upsert_definition(update_data, tenant_id=ctx.tenant_id)
     return _to_workflow_response(updated_wf)
 
 
@@ -215,17 +227,19 @@ async def update_workflow(
     "/{workflow_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete Workflow Definition",
+    dependencies=[Depends(require_permission(Permission.WORKFLOWS_WRITE))],
 )
 async def delete_workflow(
     workflow_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> None:
     """Safely delete workflow definition. Rejects deletion if executions are associated with it."""
     repo = WorkflowRepository(session)
-    wf = await repo.get_definition(workflow_id)
+    wf = await repo.get_definition(workflow_id, tenant_id=ctx.tenant_id)
     if not wf:
         raise EntityNotFoundException("WorkflowDefinition", workflow_id)
-    await repo.delete_definition(workflow_id)
+    await repo.delete_definition(workflow_id, tenant_id=ctx.tenant_id)
 
 
 @router.get(
@@ -247,10 +261,11 @@ async def list_workflow_executions(
     limit: int = Query(50, ge=1, le=1000, description="Maximum records per page"),
     offset: int = Query(0, ge=0, description="Pagination offset index"),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ExecutionListResponse:
     """Retrieve paginated executions belonging to a specific workflow definition."""
     repo = WorkflowRepository(session)
-    wf = await repo.get_definition(workflow_id)
+    wf = await repo.get_definition(workflow_id, tenant_id=ctx.tenant_id)
     if not wf:
         raise EntityNotFoundException("WorkflowDefinition", workflow_id)
 
@@ -265,6 +280,7 @@ async def list_workflow_executions(
         end_time=end_time,
         limit=limit,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
     total = await repo.count_executions(
         workflow_definition_id=workflow_id,
@@ -275,6 +291,7 @@ async def list_workflow_executions(
         max_duration_ms=max_duration_ms,
         start_time=start_time,
         end_time=end_time,
+        tenant_id=ctx.tenant_id,
     )
 
     items = [
@@ -315,10 +332,11 @@ async def get_workflow_stats(
     start_time: datetime | None = Query(None, description="Start timestamp window"),
     end_time: datetime | None = Query(None, description="End timestamp window"),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> WorkflowStatsResponse:
     """Retrieve execution metrics, success/error rates, and duration percentiles for a workflow."""
     repo = WorkflowRepository(session)
-    wf = await repo.get_definition(workflow_id)
+    wf = await repo.get_definition(workflow_id, tenant_id=ctx.tenant_id)
     if not wf:
         raise EntityNotFoundException("WorkflowDefinition", workflow_id)
 
@@ -326,5 +344,6 @@ async def get_workflow_stats(
         definition_id=workflow_id,
         start_time=start_time,
         end_time=end_time,
+        tenant_id=ctx.tenant_id,
     )
     return WorkflowStatsResponse(**stats)

@@ -6,6 +6,10 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.schemas.prediction import (
     FeatureContributionResponse,
     ModelMetadataResponse,
@@ -20,6 +24,7 @@ from apps.ml.trainer import ModelTrainer
 from packages.database.repositories.prediction_repository import PredictionRepository
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 router = APIRouter(prefix="/api/v1/predictions", tags=["Intelligence & ML Engine"])
 
@@ -28,10 +33,12 @@ router = APIRouter(prefix="/api/v1/predictions", tags=["Intelligence & ML Engine
     "/predict",
     response_model=PredictionResponse,
     summary="In-Flight Failure & Latency Prediction with TreeSHAP",
+    dependencies=[Depends(require_permission(Permission.PREDICTIONS_EXECUTE))],
 )
 async def predict_execution(
     req: PredictionRequest,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> PredictionResponse:
     """Extract in-flight features from partial trace spans, infer failure probability & duration, and compute TreeSHAP attributions."""
     raw_events = req.events
@@ -39,7 +46,7 @@ async def predict_execution(
     # If no spans passed directly, load from database trace event hypertable
     if not raw_events:
         event_repo = TraceEventRepository(session)
-        db_events = await event_repo.get_trace_events(req.execution_id)
+        db_events = await event_repo.get_trace_events(req.execution_id, tenant_id=ctx.tenant_id)
         raw_events = [e.__dict__ for e in db_events]
 
     import time
@@ -83,6 +90,7 @@ async def predict_execution(
         pred_repo = PredictionRepository(session)
         await pred_repo.save_prediction(
             prediction_id=pred_id,
+            tenant_id=ctx.tenant_id,
             execution_id=req.execution_id,
             workflow_definition_id=req.workflow_definition_id,
             step_index=step_idx,
@@ -121,10 +129,11 @@ async def predict_execution(
 async def get_execution_predictions(
     execution_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[PredictionResponse]:
     """Retrieve persisted prediction records for an execution, or generate on-demand if none exist."""
     pred_repo = PredictionRepository(session)
-    stored = await pred_repo.list_predictions_for_execution(execution_id)
+    stored = await pred_repo.list_predictions_for_execution(execution_id, tenant_id=ctx.tenant_id)
 
     if stored:
         return [
@@ -150,7 +159,7 @@ async def get_execution_predictions(
 
     # Generate on-demand prediction from execution trace spans in database
     event_repo = TraceEventRepository(session)
-    events = await event_repo.get_trace_events(execution_id)
+    events = await event_repo.get_trace_events(execution_id, tenant_id=ctx.tenant_id)
 
     pred = await predict_execution(
         PredictionRequest(
@@ -159,6 +168,7 @@ async def get_execution_predictions(
             persist_to_db=True,
         ),
         session=session,
+        ctx=ctx,
     )
     return [pred]
 
@@ -168,9 +178,11 @@ async def get_execution_predictions(
     response_model=TrainResponse,
     status_code=status.HTTP_200_OK,
     summary="Train & Evaluate Prediction Models",
+    dependencies=[Depends(require_permission(Permission.PREDICTIONS_EXECUTE))],
 )
 async def train_models(
     req: TrainRequest = TrainRequest(),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> TrainResponse:
     """Train XGBoost classifier and regressor on synthetic trace simulations and update registry."""
     trainer = ModelTrainer(random_state=req.random_state)
@@ -203,7 +215,9 @@ async def train_models(
     response_model=ModelMetadataResponse,
     summary="Get Active Model Information",
 )
-async def get_model_info() -> ModelMetadataResponse:
+async def get_model_info(
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> ModelMetadataResponse:
     """Inspect active model version, evaluation metrics, and feature names."""
     registry = ModelRegistry()
     registry.get_models()  # Ensure initialized

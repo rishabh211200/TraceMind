@@ -4,6 +4,10 @@ from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.exceptions import EntityNotFoundException
 from apps.api.schemas.optimizer import (
     CostBreakdownResponse,
@@ -26,6 +30,7 @@ from apps.ml.optimizer.models import (
 from packages.database.models.trace_event import TraceEventModel
 from packages.database.repositories.optimization_repository import OptimizationRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 router = APIRouter(prefix="/api/v1/optimizer", tags=["Optimizer"])
 
@@ -70,10 +75,12 @@ def _map_path_metrics_to_schema(p: PathMetrics) -> PathMetricsResponse:
     response_model=OptimizationReportResponse,
     status_code=status.HTTP_200_OK,
     summary="Compute Multi-Objective Path Recommendation",
+    dependencies=[Depends(require_permission(Permission.OPTIMIZER_EXECUTE))],
 )
 async def recommend_optimal_path(
     payload: OptimizationRecommendRequest,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> OptimizationReportResponse:
     """Calculate the optimal execution path across Latency, Cost, and Reliability."""
     weights = MultiObjectiveWeight(
@@ -83,7 +90,7 @@ async def recommend_optimal_path(
     )
 
     # Reconstruct paths from historical telemetry if available, else canonical templates
-    stmt = select(TraceEventModel).limit(500)
+    stmt = select(TraceEventModel).where(TraceEventModel.tenant_id == ctx.tenant_id).limit(500)
     res = await session.execute(stmt)
     recent_events = list(res.scalars().all())
     event_dicts = (
@@ -172,6 +179,7 @@ async def recommend_optimal_path(
             active_incident_culprit=payload.active_incident_culprit,
             optimization_id=recommendation.id,
             created_at=recommendation.created_at,
+            tenant_id=ctx.tenant_id,
         )
 
     return OptimizationReportResponse(
@@ -202,6 +210,7 @@ async def recommend_optimal_path(
 async def list_candidate_paths(
     workflow_definition_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[PathMetricsResponse]:
     """Retrieve all candidate execution paths and their empirical observed and modeled metrics."""
     paths = _optimizer.path_extractor.get_canonical_order_paths()
@@ -218,6 +227,7 @@ async def get_pareto_frontier(
     weight_latency: float = Query(default=0.40, ge=0.0, le=1.0),
     weight_cost: float = Query(default=0.30, ge=0.0, le=1.0),
     weight_reliability: float = Query(default=0.30, ge=0.0, le=1.0),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[ParetoPointResponse]:
     """Calculate the 3D non-dominated Pareto frontier across Latency, Cost, and Reliability."""
     weights = MultiObjectiveWeight(
@@ -251,6 +261,7 @@ async def list_optimization_history(
     limit: int = Query(default=20, ge=1, le=100),
     offset: int = Query(default=0, ge=0),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> OptimizationHistoryResponse:
     """Retrieve paginated historical workflow optimization recommendations."""
     repo = OptimizationRepository(session)
@@ -259,6 +270,7 @@ async def list_optimization_history(
         optimization_type=optimization_type,
         limit=limit,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
 
     items = [
@@ -297,10 +309,11 @@ async def list_optimization_history(
 )
 async def get_optimizer_stats(
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> OptimizerStatsResponse:
     """Retrieve aggregate optimization metrics and historical savings."""
     repo = OptimizationRepository(session)
-    stats = await repo.get_stats()
+    stats = await repo.get_stats(tenant_id=ctx.tenant_id)
     return OptimizerStatsResponse(
         total_optimizations=stats["total_optimizations"],
         strategy_breakdown=stats["strategy_breakdown"],
@@ -319,10 +332,11 @@ async def get_optimizer_stats(
 async def get_optimization_by_id(
     id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> OptimizationReportResponse:
     """Retrieve a specific historical optimization report by ID."""
     repo = OptimizationRepository(session)
-    record = await repo.get_by_id(id)
+    record = await repo.get_by_id(id, tenant_id=ctx.tenant_id)
     if not record:
         raise EntityNotFoundException(entity_type="WorkflowOptimization", entity_id=id)
 

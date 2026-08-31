@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { DashboardTab, Header } from './components/Header';
+import { AuthProvider } from './context/AuthContext';
 import { OverviewView } from './views/OverviewView';
 import { TopologyView } from './views/TopologyView';
 import { WorkflowsView } from './views/WorkflowsView';
@@ -11,8 +12,9 @@ import { RootCauseView } from './views/RootCauseView';
 import { OptimizerView } from './views/OptimizerView';
 import { RemediationView } from './views/RemediationView';
 import { AnalystView } from './views/AnalystView';
+import { SecurityView } from './views/SecurityView';
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [activeTab, setActiveTab] = useState<DashboardTab>('overview');
   const [apiHealth, setApiHealth] = useState<string>('checking...');
 
@@ -101,13 +103,25 @@ export const App: React.FC = () => {
         {activeTab === 'simulator' && (
           <SimulatorView onNavigateExecutions={() => setActiveTab('executions')} />
         )}
-      </main>
 
+        {activeTab === 'security' && (
+          <SecurityView />
+        )}
+      </main>
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs font-mono text-slate-500">
-        TraceMind &bull; AI-Powered Distributed Workflow Intelligence Platform &bull; Milestone 10
+        TraceMind &bull; AI-Powered Distributed Workflow Intelligence Platform &bull; Milestone 15
       </footer>
     </div>
   );
 };
+
+export const App: React.FC = () => {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+};
+

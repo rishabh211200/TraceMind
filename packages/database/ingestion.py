@@ -86,8 +86,9 @@ class IngestionReport:
 class DatasetIngestor:
     """Ingests generated Parquet and JSONL datasets into PostgreSQL/TimescaleDB."""
 
-    def __init__(self, session: AsyncSession) -> None:
+    def __init__(self, session: AsyncSession, tenant_id: str = "tenant_system") -> None:
         self.session = session
+        self.tenant_id = tenant_id
 
     async def seed_metadata_and_topology(self) -> tuple[int, int]:
         """Seed default service profiles and workflow topology definition."""
@@ -100,6 +101,7 @@ class DatasetIngestor:
                 capacity=1000,
                 baseline_latency_ms=3.0,
                 baseline_failure_rate=0.0,
+                tenant_id=self.tenant_id,
             ),
             ServiceModel(
                 name="customer-db",
@@ -107,6 +109,7 @@ class DatasetIngestor:
                 capacity=200,
                 baseline_latency_ms=35.0,
                 baseline_failure_rate=0.002,
+                tenant_id=self.tenant_id,
             ),
             ServiceModel(
                 name="inventory-db",
@@ -114,6 +117,7 @@ class DatasetIngestor:
                 capacity=200,
                 baseline_latency_ms=25.0,
                 baseline_failure_rate=0.002,
+                tenant_id=self.tenant_id,
             ),
             ServiceModel(
                 name="payment-gateway",
@@ -121,6 +125,7 @@ class DatasetIngestor:
                 capacity=150,
                 baseline_latency_ms=65.0,
                 baseline_failure_rate=0.005,
+                tenant_id=self.tenant_id,
             ),
             ServiceModel(
                 name="api-gateway",
@@ -128,6 +133,7 @@ class DatasetIngestor:
                 capacity=2000,
                 baseline_latency_ms=1.0,
                 baseline_failure_rate=0.0,
+                tenant_id=self.tenant_id,
             ),
         ]
 
@@ -143,6 +149,7 @@ class DatasetIngestor:
                 retry_backoff_ms=cfg.retry_backoff_ms,
                 dependencies=cfg.dependencies,
                 metadata_=cfg.metadata,
+                tenant_id=self.tenant_id,
             )
             for cfg in svc_configs.values()
         ] + infra_services
@@ -153,6 +160,7 @@ class DatasetIngestor:
         # Seed default workflow definition
         wf_def = WorkflowDefinitionModel(
             id="order_fulfillment",
+            tenant_id=self.tenant_id,
             name="Distributed Order Fulfillment Pipeline",
             version="1.0.0",
             description="End-to-end commerce checkout and fulfillment across 7 microservices",
@@ -213,6 +221,7 @@ class DatasetIngestor:
                 records.append(
                     {
                         "id": str(row["id"]),
+                        "tenant_id": self.tenant_id,
                         "scenario_type": str(row["scenario_type"]),
                         "severity": str(row["severity"]),
                         "started_at": started,
@@ -235,6 +244,7 @@ class DatasetIngestor:
                         records.append(
                             {
                                 "id": str(item["id"]),
+                                "tenant_id": self.tenant_id,
                                 "scenario_type": str(item["scenario_type"]),
                                 "severity": str(item["severity"]),
                                 "started_at": started,
@@ -276,6 +286,7 @@ class DatasetIngestor:
                 records.append(
                     {
                         "id": str(row["id"]),
+                        "tenant_id": self.tenant_id,
                         "workflow_definition_id": str(
                             row.get("workflow_definition_id", "order_fulfillment")
                         ),
@@ -308,6 +319,7 @@ class DatasetIngestor:
                         records.append(
                             {
                                 "id": str(item["id"]),
+                                "tenant_id": self.tenant_id,
                                 "workflow_definition_id": str(
                                     item.get("workflow_definition_id", "order_fulfillment")
                                 ),
@@ -357,6 +369,7 @@ class DatasetIngestor:
                 records.append(
                     {
                         "event_id": str(row["event_id"]),
+                        "tenant_id": self.tenant_id,
                         "timestamp": ts,
                         "execution_id": str(row["execution_id"]),
                         "workflow_id": str(row.get("workflow_id", "order_fulfillment")),
@@ -383,6 +396,7 @@ class DatasetIngestor:
                         records.append(
                             {
                                 "event_id": str(item["event_id"]),
+                                "tenant_id": self.tenant_id,
                                 "timestamp": ts,
                                 "execution_id": str(item["execution_id"]),
                                 "workflow_id": str(item.get("workflow_id", "order_fulfillment")),
@@ -443,6 +457,7 @@ class DatasetIngestor:
             duration = (inc.ended_at - inc.started_at).total_seconds() if inc.ended_at else 0.0
             rec = {
                 "id": inc.id,
+                "tenant_id": self.tenant_id,
                 "scenario_type": str(
                     inc.scenario_type.value
                     if hasattr(inc.scenario_type, "value")
@@ -472,6 +487,7 @@ class DatasetIngestor:
             exec_records.append(
                 {
                     "id": str(item.id),
+                    "tenant_id": self.tenant_id,
                     "workflow_definition_id": str(
                         item.workflow_definition_id or "order_fulfillment"
                     ),
@@ -507,6 +523,7 @@ class DatasetIngestor:
             event_records.append(
                 {
                     "event_id": str(ev.event_id),
+                    "tenant_id": self.tenant_id,
                     "timestamp": ev.timestamp,
                     "execution_id": str(ev.execution_id),
                     "workflow_id": str(ev.workflow_id or "order_fulfillment"),
