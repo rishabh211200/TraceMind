@@ -16,21 +16,29 @@ class IncidentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_incident(self, incident_id: str) -> IncidentModel | None:
+    async def get_incident(self, incident_id: str, tenant_id: str | None = None) -> IncidentModel | None:
         """Fetch ground-truth incident by ID."""
         stmt = select(IncidentModel).where(IncidentModel.id == incident_id)
+        if tenant_id:
+            stmt = stmt.where(IncidentModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def upsert_incident(self, data: dict[str, Any] | IncidentModel) -> IncidentModel:
+    async def upsert_incident(
+        self, data: dict[str, Any] | IncidentModel, tenant_id: str = "tenant_system"
+    ) -> IncidentModel:
         """Insert or update incident record."""
         if isinstance(data, IncidentModel):
+            if not getattr(data, "tenant_id", None):
+                data.tenant_id = tenant_id
             incident = await self.session.merge(data)
             await self.session.commit()
             return incident
 
+        if "tenant_id" not in data:
+            data["tenant_id"] = tenant_id
         inc_id = data["id"]
-        existing = await self.get_incident(inc_id)
+        existing = await self.get_incident(inc_id, tenant_id=data["tenant_id"])
         if existing:
             for k, v in data.items():
                 setattr(existing, k, v)
@@ -44,10 +52,13 @@ class IncidentRepository:
             await self.session.refresh(new_incident)
             return new_incident
 
-    async def bulk_create_incidents(self, records: list[dict[str, Any]]) -> int:
+    async def bulk_create_incidents(self, records: list[dict[str, Any]], tenant_id: str = "tenant_system") -> int:
         """Bulk insert incidents with idempotency."""
         if not records:
             return 0
+        for r in records:
+            if "tenant_id" not in r:
+                r["tenant_id"] = tenant_id
         objects = [IncidentModel(**r) for r in records]
         for obj in objects:
             await self.session.merge(obj)
@@ -62,10 +73,13 @@ class IncidentRepository:
         severity: str | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> list[IncidentModel]:
         """List ground-truth incidents with filtering and pagination."""
         stmt = select(IncidentModel).order_by(IncidentModel.started_at.desc())
 
+        if tenant_id:
+            stmt = stmt.where(IncidentModel.tenant_id == tenant_id)
         if scenario_type:
             stmt = stmt.where(IncidentModel.scenario_type == scenario_type)
         if severity:
@@ -80,11 +94,14 @@ class IncidentRepository:
         return list(result.scalars().all())
 
     async def get_incident_traces(
-        self, incident_id: str, limit: int = 100, offset: int = 0
+        self, incident_id: str, limit: int = 100, offset: int = 0, tenant_id: str | None = None
     ) -> list[WorkflowExecutionModel]:
         """Retrieve all workflow executions associated with an incident."""
-        incident = await self.get_incident(incident_id)
+        incident = await self.get_incident(incident_id, tenant_id=tenant_id)
         stmt = select(WorkflowExecutionModel).order_by(WorkflowExecutionModel.started_at.asc())
+
+        if tenant_id:
+            stmt = stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
 
         if incident:
             # Match directly by tagged incident_id or by time window overlap
@@ -101,3 +118,4 @@ class IncidentRepository:
         stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
+

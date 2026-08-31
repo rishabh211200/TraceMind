@@ -8,6 +8,10 @@ import numpy as np
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.exceptions import ValidationException
 from apps.api.schemas.simulator import (
     ChaosInjectionRequest,
@@ -21,6 +25,7 @@ from apps.simulator.incidents import INCIDENT_PRESETS, ChaosScenario
 from apps.simulator.workflow_engine import TraceSimulator
 from packages.database.ingestion import DatasetIngestor
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 from packages.domain.workflow import ExecutionStatus
 
 router = APIRouter(prefix="/api/v1/simulator", tags=["Simulator & Chaos Controls"])
@@ -31,7 +36,9 @@ router = APIRouter(prefix="/api/v1/simulator", tags=["Simulator & Chaos Controls
     response_model=list[ChaosScenarioInfo],
     summary="List Chaos Incident Scenarios",
 )
-async def list_scenarios() -> list[ChaosScenarioInfo]:
+async def list_scenarios(
+    ctx: TenantContext = Depends(get_tenant_context),
+) -> list[ChaosScenarioInfo]:
     """Retrieve catalog of all supported causal chaos incident scenarios."""
     scenarios: list[ChaosScenarioInfo] = []
     for scenario_enum, preset in INCIDENT_PRESETS.items():
@@ -54,10 +61,12 @@ async def list_scenarios() -> list[ChaosScenarioInfo]:
     response_model=SimulationGenerateResponse,
     status_code=status.HTTP_200_OK,
     summary="Trigger Synthetic Simulation Run",
+    dependencies=[Depends(require_permission(Permission.SIMULATOR_EXECUTE))],
 )
 async def generate_simulation(
     payload: SimulationGenerateRequest,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> SimulationGenerateResponse:
     """Generate synthetic workflow traces with configurable workload, seed, and chaos scenarios."""
     seed = payload.seed if payload.seed is not None else random.randint(1, 1_000_000)
@@ -112,7 +121,7 @@ async def generate_simulation(
 
     if payload.persist_to_db:
         t_persist_start = time.perf_counter()
-        ingestor = DatasetIngestor(session)
+        ingestor = DatasetIngestor(session, tenant_id=ctx.tenant_id)
         report = await ingestor.ingest_simulation_result(result)
         persist_duration_ms = (time.perf_counter() - t_persist_start) * 1000.0
         persisted_executions = report.executions_count
@@ -170,10 +179,12 @@ async def generate_simulation(
     response_model=ChaosInjectionResponse,
     status_code=status.HTTP_200_OK,
     summary="Inject Chaos Incident Scenario",
+    dependencies=[Depends(require_permission(Permission.CHAOS_INJECT))],
 )
 async def inject_chaos(
     payload: ChaosInjectionRequest,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ChaosInjectionResponse:
     """Inject a targeted chaos scenario and simulate its downstream cascading effects."""
     try:
@@ -199,7 +210,7 @@ async def inject_chaos(
     result = await asyncio.to_thread(_run_chaos)
 
     if payload.persist_to_db:
-        ingestor = DatasetIngestor(session)
+        ingestor = DatasetIngestor(session, tenant_id=ctx.tenant_id)
         await ingestor.ingest_simulation_result(result)
 
     incident = result.incidents[0] if result.incidents else None
@@ -235,3 +246,4 @@ async def inject_chaos(
         retry_rate_percent=round(retry_rate, 2),
         persisted_to_db=payload.persist_to_db,
     )
+

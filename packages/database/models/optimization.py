@@ -21,7 +21,9 @@ class OptimizationModel(Base):
         default=lambda: f"opt_{uuid4().hex[:10]}",
         doc="Unique optimization recommendation identifier (e.g. opt_a1b2c3d4)",
     )
+    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
     workflow_definition_id: Mapped[str] = mapped_column(
+
         String(64),
         nullable=False,
         index=True,

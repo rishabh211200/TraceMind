@@ -5,6 +5,10 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.exceptions import EntityNotFoundException
 from apps.api.schemas.common import PaginatedResponse, PaginationMeta
 from apps.api.schemas.root_cause import (
@@ -20,6 +24,7 @@ from packages.database.repositories.prediction_repository import PredictionRepos
 from packages.database.repositories.root_cause_repository import RootCauseRepository
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 router = APIRouter(prefix="/api/v1/root-cause", tags=["Root Cause Engine"])
 
@@ -70,22 +75,24 @@ def _map_report_to_response(report: RootCauseReport) -> RootCauseReportResponse:
     response_model=RootCauseReportResponse,
     status_code=status.HTTP_200_OK,
     summary="Analyze Root Cause for Execution",
+    dependencies=[Depends(require_permission(Permission.RCA_EXECUTE))],
 )
 async def analyze_root_cause(
     payload: RootCauseAnalyzeRequest,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> RootCauseReportResponse:
     """Run deterministic causal graph reasoning to identify culprit dependencies."""
     events: list[dict[str, Any]] | None = payload.events
     if events is None:
         event_repo = TraceEventRepository(session)
-        db_events = await event_repo.get_trace_events(payload.execution_id)
+        db_events = await event_repo.get_trace_events(payload.execution_id, tenant_id=ctx.tenant_id)
         events = [e.__dict__ for e in db_events]
 
     anomalies = payload.anomalies
     if anomalies is None:
         anom_repo = AnomalyRepository(session)
-        db_anoms = await anom_repo.get_anomalies_by_execution(payload.execution_id)
+        db_anoms = await anom_repo.get_anomalies_by_execution(payload.execution_id, tenant_id=ctx.tenant_id)
         if db_anoms:
             anomalies = [
                 {
@@ -116,7 +123,7 @@ async def analyze_root_cause(
     shap_contribs = payload.shap_contributions
     if shap_contribs is None:
         pred_repo = PredictionRepository(session)
-        db_preds = await pred_repo.list_predictions_for_execution(payload.execution_id)
+        db_preds = await pred_repo.list_predictions_for_execution(payload.execution_id, tenant_id=ctx.tenant_id)
         if db_preds and db_preds[0].feature_attributions:
             shap_contribs = db_preds[0].feature_attributions
 
@@ -142,6 +149,7 @@ async def analyze_root_cause(
         await repo.create_root_cause_report(
             {
                 "id": report.id,
+                "tenant_id": ctx.tenant_id,
                 "execution_id": report.execution_id,
                 "workflow_definition_id": report.workflow_definition_id,
                 "culprit_service": report.culprit_service,
@@ -160,7 +168,8 @@ async def analyze_root_cause(
                     }
                     for h in report.alternative_hypotheses
                 ],
-            }
+            },
+            tenant_id=ctx.tenant_id,
         )
 
     return _map_report_to_response(report)
@@ -174,10 +183,11 @@ async def analyze_root_cause(
 async def get_reports_by_execution(
     execution_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[RootCauseReportResponse]:
     """Retrieve all historical root cause diagnoses for an execution."""
     repo = RootCauseRepository(session)
-    records = await repo.get_by_execution_id(execution_id)
+    records = await repo.get_by_execution_id(execution_id, tenant_id=ctx.tenant_id)
 
     responses: list[RootCauseReportResponse] = []
     for r in records:
@@ -226,10 +236,11 @@ async def get_reports_by_execution(
 )
 async def get_root_cause_stats(
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> RootCauseStatsResponse:
     """Retrieve aggregate statistics on incident categories, culprits, and confidence."""
     repo = RootCauseRepository(session)
-    stats_data = await repo.get_stats()
+    stats_data = await repo.get_stats(tenant_id=ctx.tenant_id)
     return RootCauseStatsResponse(
         total_diagnoses=stats_data["total_diagnoses"],
         by_category=stats_data["by_category"],
@@ -251,6 +262,7 @@ async def list_root_cause_reports(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> PaginatedResponse[RootCauseReportResponse]:
     """Search and filter historical root cause diagnoses with pagination."""
     repo = RootCauseRepository(session)
@@ -262,6 +274,7 @@ async def list_root_cause_reports(
         min_confidence=min_confidence,
         limit=page_size,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
 
     items: list[RootCauseReportResponse] = []
@@ -320,10 +333,11 @@ async def list_root_cause_reports(
 async def get_root_cause_report(
     report_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> RootCauseReportResponse:
     """Retrieve detailed root cause report by ID."""
     repo = RootCauseRepository(session)
-    r = await repo.get_by_id(report_id)
+    r = await repo.get_by_id(report_id, tenant_id=ctx.tenant_id)
     if not r:
         raise EntityNotFoundException(entity_type="RootCauseReport", entity_id=report_id)
 
@@ -360,3 +374,4 @@ async def get_root_cause_report(
         alternative_hypotheses=alternatives,
         analyzed_at=r.analyzed_at,
     )
+

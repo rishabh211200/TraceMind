@@ -7,9 +7,13 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+)
 from apps.api.exceptions import EntityNotFoundException
 from packages.database.repositories.incident_repository import IncidentRepository
 from packages.database.session import get_db_session
+from packages.domain.security import TenantContext
 
 router = APIRouter(prefix="/api/v1/incidents", tags=["Incidents & Ground Truth"])
 
@@ -62,6 +66,7 @@ async def list_incidents(
     limit: int = Query(50, ge=1, le=500),
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[IncidentResponse]:
     """Retrieve list of recorded ground-truth chaos incidents with optional filtering."""
     repo = IncidentRepository(session)
@@ -72,6 +77,7 @@ async def list_incidents(
         severity=severity,
         limit=limit,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
     return [
         IncidentResponse(
@@ -99,10 +105,11 @@ async def list_incidents(
 async def get_incident(
     incident_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> IncidentResponse:
     """Retrieve ground-truth incident details by ID."""
     repo = IncidentRepository(session)
-    incident = await repo.get_incident(incident_id)
+    incident = await repo.get_incident(incident_id, tenant_id=ctx.tenant_id)
     if not incident:
         raise EntityNotFoundException("Incident", incident_id)
     return IncidentResponse(
@@ -130,10 +137,13 @@ async def get_incident_traces(
     limit: int = Query(100, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[IncidentTraceResponse]:
     """Retrieve all workflow executions associated with or affected by an incident."""
     repo = IncidentRepository(session)
-    traces = await repo.get_incident_traces(incident_id, limit=limit, offset=offset)
+    traces = await repo.get_incident_traces(
+        incident_id, limit=limit, offset=offset, tenant_id=ctx.tenant_id
+    )
     return [
         IncidentTraceResponse(
             id=t.id,
@@ -151,3 +161,4 @@ async def get_incident_traces(
         )
         for t in traces
     ]
+

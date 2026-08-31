@@ -35,6 +35,7 @@ class Incident(BaseModel):
     """Record of a synthetic incident with ground-truth causal information."""
 
     id: str = Field(default_factory=lambda: f"inc_{uuid4().hex[:10]}")
+    tenant_id: str = Field(default="tenant_system", description="Owning multi-tenant organization ID")
     scenario_type: IncidentScenario = Field(..., description="Categorical incident scenario")
     severity: Severity = Field(default=Severity.MEDIUM, description="Impact severity")
     started_at: datetime = Field(
@@ -51,3 +52,4 @@ class Incident(BaseModel):
     parameters: dict[str, Any] = Field(
         default_factory=dict, description="Simulation injection parameters"
     )
+

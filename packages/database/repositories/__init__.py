@@ -11,6 +11,7 @@ from packages.database.repositories.remediation_repository import (
     RemediationRepository,
 )
 from packages.database.repositories.root_cause_repository import RootCauseRepository
+from packages.database.repositories.security_repository import SecurityRepository
 from packages.database.repositories.service_repository import ServiceRepository
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.repositories.workflow_repository import WorkflowRepository
@@ -26,4 +27,6 @@ __all__ = [
     "OptimizationRepository",
     "AnalystRepository",
     "RemediationRepository",
+    "SecurityRepository",
 ]
+
