@@ -18,6 +18,7 @@ from apps.ml.root_cause.engine import RootCauseEngine
 from apps.simulator.config import SimulationConfig
 from apps.simulator.incidents import INCIDENT_PRESETS
 from apps.simulator.workflow_engine import TraceSimulator
+from packages.domain.events import TraceEvent
 from packages.domain.incident import IncidentScenario
 
 
@@ -65,7 +66,7 @@ def run_benchmark():
         sim = TraceSimulator(config=cfg)
         res = sim.run()
 
-        exec_events_map = {}
+        exec_events_map: dict[str, list[TraceEvent]] = {}
         for e in res.events:
             exec_events_map.setdefault(e.execution_id, []).append(e)
 

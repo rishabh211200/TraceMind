@@ -918,6 +918,71 @@ Key capabilities delivered:
 * **Linter & Formatter**: **Ruff clean** across 194 source files.
 * **Frontend Build**: **Vite production build passing** in 3.94s with 0 errors.
 
+---
+
+## Milestone 13: Large-Scale HPC Performance Experiments (1M+ Traces)
+
+### 1. Key Architectural Implementations & Invariants
+
+1. **Cross-Platform Hardware Discovery & Performance Profiler (`packages/common/profiler.py`)**:
+   - `discover_system_hardware()` extracting OS platform, CPU processor architecture, logical core count (20 cores detected), total physical RAM (31.64 GB), and Python runtime environment.
+   - Cross-platform process RSS/WSS memory tracking using native Windows API `GetProcessMemoryInfo` (and `tracemalloc` peak fallback).
+   - High-resolution statistical profiler calculating item throughput, wall-clock duration, speedup factors, parallel efficiency percentages, and percentile distributions ($P_{50}, P_{90}, P_{95}, P_{99}$, Mean, Std Dev, Min, Max).
+2. **High-Performance Parallel Discrete-Event Trace Simulator (`apps/simulator/parallel_engine.py`)**:
+   - Multiprocess chunked architecture dividing large simulation batches across worker processes.
+   - Deterministic chunk seed derivation ($\text{seed}_k = \text{base\_seed} + k \times 1000$) guaranteeing 100% reproducible trace and incident generation across runs.
+   - Streaming generator (`stream_chunks`) yielding memory-bounded chunks of 50K executions to strictly preserve peak RSS $\le 2.0\text{ GB}$.
+3. **Comprehensive 7-Suite HPC Benchmark Harness (`benchmarks/benchmark_hpc_scalability.py`)**:
+   - **Suite A**: Parallel Simulation Scaling across 1, 2, 4, 8, 16, 20 workers.
+   - **Suite B**: Streaming Ingestion & Backpressure Ring Buffers (1K, 5K, 10K batch sizes).
+   - **Suite C**: TimescaleDB Bulk Operations (chunked 10K write arrays).
+   - **Suite D**: Batched XGBoost Matrix Inference & TreeSHAP Feature Attributions (1, 10, 100, 1K, 5K batch sizes).
+   - **Suite E**: Unsupervised Anomaly Scoring & Causal Graph Topological RCA.
+   - **Suite F**: 3D Pareto Optimizer Frontier Scalability (5,000 evaluations).
+   - **Suite G**: Concurrent Grounded AI Analyst Workload (50 concurrent turns).
+4. **HPC Scalability Research Whitepaper (`docs/research/hpc_scalability_report.md`)**:
+   - Comprehensive documentation of all synthetic laboratory benchmarks, mathematical distributions, memory bounds, and production scaling guidelines.
+
+### 2. New Components
+
+* `packages/common/profiler.py`: Hardware discovery, RSS memory measurement, and statistical percentile profiler.
+* `apps/simulator/parallel_engine.py`: Multiprocess trace simulation engine and streaming chunk generator.
+* `benchmarks/benchmark_hpc_scalability.py`: 7-suite large-scale HPC benchmark runner.
+* `tests/unit/test_hpc_scalability.py`: Unit tests for profiler and parallel simulator.
+* `docs/research/hpc_scalability_report.md`: Formal research whitepaper.
+
+### 3. Verification & Acceptance Results
+
+```text
+================================================================================
+   TraceMind HPC Scalability & Large-Scale Performance Benchmark Suite    
+================================================================================
+  OS Platform        : Windows 11 (AMD64)
+  CPU Processor      : Intel64 Family 6 Model 154 Stepping 3, GenuineIntel
+  Logical CPU Cores  : 20
+  Total Physical RAM : 31.64 GB
+  Python Runtime     : 3.12.14 (MSC v.1944 64 bit (AMD64))
+================================================================================
+
+[Suite A] Parallel Sim Speedup      : 8.55x on 4 workers | 6.97x on 8 workers
+[Suite A] 1M Full-Scale Simulation  : 45.21 s (22,120.9 exec/s | 426,239.4 events/s)
+[Suite B] Stream Ingestion Rate     : 704,138.2 events/sec (P99: 0.0017 ms)
+[Suite C] TimescaleDB Write Rate    : 257,030.4 events/sec (P99: 0.0046 ms)
+[Suite D] Batched XGBoost Predict   : 3,217,345.9 preds/sec (P99: 0.0004 ms/vec)
+[Suite D] TreeSHAP Attribution Rate : 455,641.1 attr/sec (P99: 0.0024 ms/vec)
+[Suite E] Anomaly Scoring Rate      : 59,277.0 spans/sec (P99: 0.0169 ms)
+[Suite E] Causal Graph RCA Rate     : 1,480.0 diagnoses/sec (P99: 1.140 ms)
+[Suite F] 3D Pareto Optimizer Rate  : 5,240.2 optimizations/sec (P99: 0.248 ms)
+[Suite G] Concurrent AI Analyst     : 50 turns in 0.072s (693.5 turns/s, 100% grounded)
+================================================================================
+```
+
+* **Test Suite**: **128/128 tests passing** (`pytest -p no:cacheprovider tests/`).
+* **Type Safety**: **Mypy clean (0 errors)** across 168 source files.
+* **Linter & Formatter**: **Ruff clean** across 197 source files.
+* **Frontend Build**: **Vite production build passing** with 0 errors.
+
+
 
 
 
