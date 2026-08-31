@@ -55,7 +55,9 @@ class WorkflowDefinition(BaseModel):
     """Structural definition of a distributed workflow graph."""
 
     id: str = Field(..., description="Unique workflow identifier (e.g. order_processing)")
-    tenant_id: str = Field(default="tenant_system", description="Owning multi-tenant organization ID")
+    tenant_id: str = Field(
+        default="tenant_system", description="Owning multi-tenant organization ID"
+    )
     name: str = Field(..., description="Display name of the workflow")
     version: str = Field(default="1.0.0", description="Semantic workflow version")
     description: str = Field(default="", description="Workflow operational description")
@@ -70,7 +72,9 @@ class WorkflowExecution(BaseModel):
     """Record of a specific workflow execution instance."""
 
     id: str = Field(default_factory=lambda: f"exec_{uuid4().hex[:12]}")
-    tenant_id: str = Field(default="tenant_system", description="Owning multi-tenant organization ID")
+    tenant_id: str = Field(
+        default="tenant_system", description="Owning multi-tenant organization ID"
+    )
     workflow_definition_id: str = Field(..., description="Associated workflow definition ID")
     started_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC), description="Execution start timestamp"
@@ -86,4 +90,3 @@ class WorkflowExecution(BaseModel):
     error_count: int = Field(default=0, ge=0, description="Total errors encountered")
     failure_reason: str | None = Field(default=None, description="Explanation if execution failed")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Execution run metadata")
-

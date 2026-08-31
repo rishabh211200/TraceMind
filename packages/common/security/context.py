@@ -30,7 +30,6 @@ def get_current_tenant_context() -> TenantContext:
     return ctx
 
 
-
 def set_current_tenant_context(ctx: TenantContext) -> Token[TenantContext | None]:
     """Set the active TenantContext and return a token for resetting."""
     return _tenant_context_var.set(ctx)

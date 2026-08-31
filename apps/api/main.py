@@ -166,7 +166,6 @@ app.include_router(services_router)
 app.include_router(incidents_router)
 
 
-
 @app.get(
     "/metrics",
     tags=["Observability & Metrics"],

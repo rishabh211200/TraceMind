@@ -21,7 +21,9 @@ class AnalystConversationModel(Base):
         default=lambda: f"conv_{uuid4().hex[:10]}",
         doc="Unique conversation session identifier (e.g. conv_a1b2c3d4)",
     )
-    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     title: Mapped[str] = mapped_column(
         String(255),
         nullable=False,
@@ -86,7 +88,9 @@ class AnalystMessageModel(Base):
         default=lambda: f"msg_{uuid4().hex[:10]}",
         doc="Unique message identifier (e.g. msg_x1y2z3)",
     )
-    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     conversation_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("analyst_conversations.id", ondelete="CASCADE"),

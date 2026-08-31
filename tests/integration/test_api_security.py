@@ -20,7 +20,6 @@ def jwt_mgr() -> JWTTokenManager:
     return get_jwt_manager()
 
 
-
 @pytest.fixture
 def token_platform_admin(jwt_mgr: JWTTokenManager) -> str:
     return jwt_mgr.create_access_token(
@@ -30,7 +29,6 @@ def token_platform_admin(jwt_mgr: JWTTokenManager) -> str:
         roles=[Role.PLATFORM_ADMIN],
         permissions=list(Permission),
     )
-
 
 
 @pytest.fixture
@@ -129,7 +127,6 @@ def token_viewer_b(jwt_mgr: JWTTokenManager) -> str:
     )
 
 
-
 # -----------------------------------------------------------------------------
 # 1. RBAC Authorization Matrix Tests
 # -----------------------------------------------------------------------------
@@ -194,7 +191,6 @@ async def test_rbac_endpoint_protection(
     # Unauthenticated request -> 401 Unauthorized
     res = await client.get("/api/v1/remediations/plans", headers={"Authorization": ""})
     assert res.status_code == 401
-
 
 
 # -----------------------------------------------------------------------------
@@ -457,7 +453,6 @@ async def test_api_key_lifecycle_and_authentication(
     assert res_after_revocation.status_code == 401
 
 
-
 # -----------------------------------------------------------------------------
 # 7. User & Tenant Administration Privilege Controls
 # -----------------------------------------------------------------------------
@@ -513,4 +508,3 @@ async def test_tenant_and_user_administration_privileges(
     assert res_list_admin.status_code == 200
     tenant_ids = [t["id"] for t in res_list_admin.json()]
     assert created_id in tenant_ids
-

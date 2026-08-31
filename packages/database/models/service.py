@@ -14,7 +14,9 @@ class ServiceModel(Base, TimestampMixin):
     __tablename__ = "services"
 
     name: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
-    tenant_id: Mapped[str] = mapped_column(String(64), primary_key=True, default="tenant_system", index=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default="tenant_system", index=True
+    )
     service_type: Mapped[str] = mapped_column(
         String(32), default="business_microservice", nullable=False
     )

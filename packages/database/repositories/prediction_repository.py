@@ -52,7 +52,9 @@ class PredictionRepository:
         await self.session.refresh(pred)
         return pred
 
-    async def get_prediction(self, prediction_id: str, tenant_id: str | None = None) -> PredictionModel | None:
+    async def get_prediction(
+        self, prediction_id: str, tenant_id: str | None = None
+    ) -> PredictionModel | None:
         """Fetch a specific prediction by its unique identifier."""
         stmt = select(PredictionModel).where(PredictionModel.id == prediction_id)
         if tenant_id:
@@ -112,4 +114,3 @@ class PredictionRepository:
             stmt = stmt.where(PredictionModel.failure_probability >= min_failure_probability)
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
-

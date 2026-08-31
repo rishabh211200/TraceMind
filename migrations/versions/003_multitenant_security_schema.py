@@ -151,7 +151,9 @@ def upgrade() -> None:
     for table_name in tenant_scoped_tables:
         op.add_column(
             table_name,
-            sa.Column("tenant_id", sa.String(length=64), nullable=False, server_default="tenant_system"),
+            sa.Column(
+                "tenant_id", sa.String(length=64), nullable=False, server_default="tenant_system"
+            ),
         )
         op.create_index(f"ix_{table_name}_tenant_id", table_name, ["tenant_id"])
 

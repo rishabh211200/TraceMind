@@ -164,7 +164,6 @@ class DatasetIngestor:
             name="Distributed Order Fulfillment Pipeline",
             version="1.0.0",
             description="End-to-end commerce checkout and fulfillment across 7 microservices",
-
             nodes=[
                 {"id": "auth", "service": "auth-service", "operation": "authenticate_user"},
                 {
@@ -538,7 +537,6 @@ class DatasetIngestor:
                     "metadata_": ev.metadata or {},
                 }
             )
-
 
         for i in range(0, len(event_records), batch_size):
             chunk_ev = event_records[i : i + batch_size]

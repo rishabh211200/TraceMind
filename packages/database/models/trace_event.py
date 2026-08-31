@@ -26,7 +26,10 @@ class TraceEventModel(Base):
     )
 
     tenant_id: Mapped[str] = mapped_column(
-        String(64), default="tenant_system", nullable=False, doc="Owning multi-tenant organization ID"
+        String(64),
+        default="tenant_system",
+        nullable=False,
+        doc="Owning multi-tenant organization ID",
     )
     execution_id: Mapped[str] = mapped_column(
         String(64), nullable=False, doc="Parent workflow execution / trace ID"
@@ -67,4 +70,3 @@ class TraceEventModel(Base):
         Index("ix_trace_events_status_ts", "status", "timestamp"),
         Index("ix_trace_events_parent", "parent_event_id"),
     )
-

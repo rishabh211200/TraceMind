@@ -191,4 +191,3 @@ async def get_trace_tree(
             detail=f"Could not reconstruct tree for trace '{trace_id}'",
         )
     return tree
-

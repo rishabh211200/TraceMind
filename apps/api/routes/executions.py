@@ -199,4 +199,3 @@ async def get_execution_trace_tree(
         raise EntityNotFoundException("TraceTree", execution_id)
 
     return TraceTreeNodeResponse(**tree)
-

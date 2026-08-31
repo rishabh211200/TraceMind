@@ -212,4 +212,3 @@ class TestInMemorySlidingWindowRateLimiter:
         limiter.clear(key)
         res3 = await limiter.check(key, max_requests=1, window_seconds=1)
         assert res3.allowed is True
-

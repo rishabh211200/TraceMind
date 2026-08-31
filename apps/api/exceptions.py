@@ -103,7 +103,11 @@ class SimulationException(APIException):
 class AuthenticationException(APIException):
     """401 Unauthorized exception."""
 
-    def __init__(self, detail: str = "Authentication required or invalid credentials.", error_code: str = "UNAUTHORIZED") -> None:
+    def __init__(
+        self,
+        detail: str = "Authentication required or invalid credentials.",
+        error_code: str = "UNAUTHORIZED",
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
             title="Unauthorized",
@@ -115,7 +119,9 @@ class AuthenticationException(APIException):
 class ForbiddenException(APIException):
     """403 Forbidden permission denied exception."""
 
-    def __init__(self, detail: str = "Permission denied for this resource.", error_code: str = "FORBIDDEN") -> None:
+    def __init__(
+        self, detail: str = "Permission denied for this resource.", error_code: str = "FORBIDDEN"
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
             title="Forbidden",
@@ -127,7 +133,11 @@ class ForbiddenException(APIException):
 class TenantMismatchException(ForbiddenException):
     """403 Forbidden tenant isolation boundary violation."""
 
-    def __init__(self, detail: str = "X-Tenant-Id header does not match authenticated tenant context.", error_code: str = "TENANT_MISMATCH") -> None:
+    def __init__(
+        self,
+        detail: str = "X-Tenant-Id header does not match authenticated tenant context.",
+        error_code: str = "TENANT_MISMATCH",
+    ) -> None:
         super().__init__(
             detail=detail,
             error_code=error_code,
@@ -137,7 +147,12 @@ class TenantMismatchException(ForbiddenException):
 class RateLimitExceededException(APIException):
     """429 Too Many Requests rate limit exceeded exception."""
 
-    def __init__(self, detail: str = "Rate limit exceeded. Please retry later.", retry_after: int = 60, error_code: str = "RATE_LIMIT_EXCEEDED") -> None:
+    def __init__(
+        self,
+        detail: str = "Rate limit exceeded. Please retry later.",
+        retry_after: int = 60,
+        error_code: str = "RATE_LIMIT_EXCEEDED",
+    ) -> None:
         super().__init__(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             title="Rate Limit Exceeded",
@@ -145,7 +160,6 @@ class RateLimitExceededException(APIException):
             error_code=error_code,
         )
         self.retry_after = retry_after
-
 
 
 def register_exception_handlers(app: FastAPI) -> None:

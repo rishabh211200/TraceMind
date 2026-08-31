@@ -230,4 +230,3 @@ async def get_model_info(
         features=FEATURE_NAMES,
         metrics=meta.get("metrics", {}),
     )
-

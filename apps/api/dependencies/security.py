@@ -47,7 +47,6 @@ def get_security_repo(session: AsyncSession = Depends(get_db_session)) -> Securi
 async def get_tenant_context(  # noqa: C901
     request: Request,
     authorization: str | None = Header(None, alias="Authorization"),
-
     x_api_key: str | None = Header(None, alias="X-API-Key"),
     x_tenant_id: str | None = Header(None, alias="X-Tenant-Id"),
     session: AsyncSession = Depends(get_db_session),
@@ -93,15 +92,25 @@ async def get_tenant_context(  # noqa: C901
                 is_platform_admin=is_plat_admin,
             )
         except TokenExpiredException as e:
-            raise AuthenticationException(f"Access token expired: {e}", error_code="TOKEN_EXPIRED") from e
+            raise AuthenticationException(
+                f"Access token expired: {e}", error_code="TOKEN_EXPIRED"
+            ) from e
         except InvalidSignatureException as e:
-            raise AuthenticationException("Invalid RS256 token signature", error_code="INVALID_SIGNATURE") from e
+            raise AuthenticationException(
+                "Invalid RS256 token signature", error_code="INVALID_SIGNATURE"
+            ) from e
         except TokenRevokedException as e:
-            raise AuthenticationException(f"Token has been revoked: {e}", error_code="TOKEN_REVOKED") from e
+            raise AuthenticationException(
+                f"Token has been revoked: {e}", error_code="TOKEN_REVOKED"
+            ) from e
         except InvalidTokenException as e:
-            raise AuthenticationException(f"Invalid authentication token: {e}", error_code="INVALID_TOKEN") from e
+            raise AuthenticationException(
+                f"Invalid authentication token: {e}", error_code="INVALID_TOKEN"
+            ) from e
         except Exception as e:
-            raise AuthenticationException(f"Authentication failed: {e}", error_code="AUTH_FAILED") from e
+            raise AuthenticationException(
+                f"Authentication failed: {e}", error_code="AUTH_FAILED"
+            ) from e
 
     # 2. API Key Authentication (Secondary)
     elif x_api_key:
@@ -116,7 +125,6 @@ async def get_tenant_context(  # noqa: C901
                 prefix = f"tm_{parts[0]}" if len(parts) > 1 else x_api_key[:7]
                 secret_raw = parts[-1] if len(parts) > 1 else x_api_key[7:]
 
-
             matching_keys = await repo.get_api_keys_by_prefix(prefix)
             valid_key = None
             hashed_input = hash_api_key_secret(secret_raw)
@@ -129,7 +137,9 @@ async def get_tenant_context(  # noqa: C901
                     break
 
             if not valid_key:
-                raise AuthenticationException("Invalid or expired API key", error_code="INVALID_API_KEY")
+                raise AuthenticationException(
+                    "Invalid or expired API key", error_code="INVALID_API_KEY"
+                )
 
             scopes = set()
             for s in valid_key.scopes or []:
@@ -139,7 +149,11 @@ async def get_tenant_context(  # noqa: C901
                     scopes.add(s)
 
             user = await repo.get_user_by_id(valid_key.user_id) if valid_key.user_id else None
-            roles = [Role(r) for r in (user.roles if user else ["OPERATOR"]) if r in Role._value2member_map_]
+            roles = [
+                Role(r)
+                for r in (user.roles if user else ["OPERATOR"])
+                if r in Role._value2member_map_
+            ]
             for r in roles:
                 scopes.update(ROLE_PERMISSIONS_MAP.get(r, set()))
 
@@ -155,7 +169,9 @@ async def get_tenant_context(  # noqa: C901
         except AuthenticationException:
             raise
         except Exception as e:
-            raise AuthenticationException(f"API key authentication error: {e}", error_code="API_KEY_ERROR") from e
+            raise AuthenticationException(
+                f"API key authentication error: {e}", error_code="API_KEY_ERROR"
+            ) from e
 
     # 3. Unauthenticated Fallback (Fail-Closed or System Tenant for Open Read routes)
     else:

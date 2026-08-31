@@ -102,7 +102,6 @@ class InMemorySlidingWindowRateLimiter:
             self._windows.clear()
 
 
-
 # Global in-memory rate limiter singleton
 _rate_limiter: InMemorySlidingWindowRateLimiter | None = None
 

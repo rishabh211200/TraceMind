@@ -21,7 +21,9 @@ class RootCauseModel(Base):
         default=lambda: f"rc_{uuid4().hex[:10]}",
         doc="Unique root-cause diagnosis identifier (e.g. rc_a1b2c3d4)",
     )
-    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     execution_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("workflow_executions.id"),

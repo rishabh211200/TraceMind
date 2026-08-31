@@ -171,4 +171,3 @@ async def get_service_health(
         service=service_name, start_time=start_time, end_time=end_time, tenant_id=ctx.tenant_id
     )
     return ServiceHealthResponse(**health)
-

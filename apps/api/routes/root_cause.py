@@ -92,7 +92,9 @@ async def analyze_root_cause(
     anomalies = payload.anomalies
     if anomalies is None:
         anom_repo = AnomalyRepository(session)
-        db_anoms = await anom_repo.get_anomalies_by_execution(payload.execution_id, tenant_id=ctx.tenant_id)
+        db_anoms = await anom_repo.get_anomalies_by_execution(
+            payload.execution_id, tenant_id=ctx.tenant_id
+        )
         if db_anoms:
             anomalies = [
                 {
@@ -123,7 +125,9 @@ async def analyze_root_cause(
     shap_contribs = payload.shap_contributions
     if shap_contribs is None:
         pred_repo = PredictionRepository(session)
-        db_preds = await pred_repo.list_predictions_for_execution(payload.execution_id, tenant_id=ctx.tenant_id)
+        db_preds = await pred_repo.list_predictions_for_execution(
+            payload.execution_id, tenant_id=ctx.tenant_id
+        )
         if db_preds and db_preds[0].feature_attributions:
             shap_contribs = db_preds[0].feature_attributions
 
@@ -374,4 +378,3 @@ async def get_root_cause_report(
         alternative_hypotheses=alternatives,
         analyzed_at=r.analyzed_at,
     )
-

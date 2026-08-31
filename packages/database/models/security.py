@@ -34,7 +34,9 @@ class UserModel(Base):
 
     __tablename__ = "users"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: f"usr_{uuid4().hex[:12]}")
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=lambda: f"usr_{uuid4().hex[:12]}"
+    )
     tenant_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
     )
@@ -60,7 +62,9 @@ class ApiKeyModel(Base):
 
     __tablename__ = "api_keys"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: f"key_{uuid4().hex[:12]}")
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=lambda: f"key_{uuid4().hex[:12]}"
+    )
     tenant_id: Mapped[str] = mapped_column(
         String(64), ForeignKey("tenants.id", ondelete="CASCADE"), index=True, nullable=False
     )
@@ -85,7 +89,9 @@ class RevokedTokenModel(Base):
 
     __tablename__ = "revoked_tokens"
 
-    id: Mapped[str] = mapped_column(String(64), primary_key=True, default=lambda: f"rev_{uuid4().hex[:12]}")
+    id: Mapped[str] = mapped_column(
+        String(64), primary_key=True, default=lambda: f"rev_{uuid4().hex[:12]}"
+    )
     jti: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     tenant_id: Mapped[str] = mapped_column(String(64), index=True, nullable=False)
     user_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

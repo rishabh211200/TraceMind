@@ -16,7 +16,9 @@ class TraceEventRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def bulk_insert_events(self, records: list[dict[str, Any]], tenant_id: str = "tenant_system") -> int:
+    async def bulk_insert_events(
+        self, records: list[dict[str, Any]], tenant_id: str = "tenant_system"
+    ) -> int:
         """Bulk insert trace events with idempotency."""
         if not records:
             return 0
@@ -29,7 +31,9 @@ class TraceEventRepository:
         await self.session.commit()
         return len(records)
 
-    async def get_trace_events(self, execution_id: str, tenant_id: str | None = None) -> list[TraceEventModel]:
+    async def get_trace_events(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> list[TraceEventModel]:
         """Retrieve all events for a trace strictly ordered by timestamp."""
         stmt = (
             select(TraceEventModel)
@@ -41,7 +45,9 @@ class TraceEventRepository:
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_trace_tree(self, execution_id: str, tenant_id: str | None = None) -> dict[str, Any] | None:
+    async def get_trace_tree(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> dict[str, Any] | None:
         """Reconstruct the hierarchical parent-child trace execution DAG tree."""
         events = await self.get_trace_events(execution_id, tenant_id=tenant_id)
         if not events:
@@ -93,7 +99,6 @@ class TraceEventRepository:
     async def get_service_latency_stats(  # noqa: C901
         self,
         service: str,
-
         start_time: datetime | None = None,
         end_time: datetime | None = None,
         tenant_id: str | None = None,
@@ -231,7 +236,9 @@ class TraceEventRepository:
         retry_rate = (retries / total_events * 100.0) if total_events > 0 else 0.0
         timeout_rate = (timeouts / total_events * 100.0) if total_events > 0 else 0.0
 
-        latency_stats = await self.get_service_latency_stats(service, start_time, end_time, tenant_id=tenant_id)
+        latency_stats = await self.get_service_latency_stats(
+            service, start_time, end_time, tenant_id=tenant_id
+        )
 
         return {
             "service": service,
@@ -344,7 +351,6 @@ class TraceEventRepository:
     async def _get_telemetry_summary_fallback(  # noqa: C901
         self,
         start_time: datetime | None = None,
-
         end_time: datetime | None = None,
         tenant_id: str | None = None,
     ) -> list[dict[str, Any]]:
@@ -464,4 +470,3 @@ class TraceEventRepository:
         if dialect_name == "postgresql":
             return await self._get_telemetry_summary_pg(start_time, end_time, tenant_id=tenant_id)
         return await self._get_telemetry_summary_fallback(start_time, end_time, tenant_id=tenant_id)
-

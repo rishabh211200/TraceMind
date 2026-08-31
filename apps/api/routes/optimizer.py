@@ -362,4 +362,3 @@ async def get_optimization_by_id(
         active_incident_culprit=record.active_incident_culprit,
         created_at=record.created_at,
     )
-

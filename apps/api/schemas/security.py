@@ -64,7 +64,6 @@ class UserCreate(BaseModel):
     roles: list[Role] = Field(default_factory=lambda: [Role.VIEWER])
 
 
-
 class TenantCreate(BaseModel):
     """Payload for provisioning a new tenant organization."""
 

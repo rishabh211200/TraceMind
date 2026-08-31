@@ -104,19 +104,22 @@ class AES256GCMCipher:
         if keys:
             self._keys = dict(keys)
         else:
-
             # Generate deterministic ephemeral 256-bit key from environment or urandom
             env_key = os.environ.get("TRACEMIND_SECRET_KEY")
             if env_key:
                 derived = hashlib.sha256(env_key.encode("utf-8")).digest()
             else:
-                derived = hashlib.sha256(b"tracemind_default_secret_key_change_in_production").digest()
+                derived = hashlib.sha256(
+                    b"tracemind_default_secret_key_change_in_production"
+                ).digest()
             self._keys = {primary_key_id: derived}
 
         # Validate that all keys are 32 bytes (256-bit)
         for kid, key_bytes in self._keys.items():
             if len(key_bytes) != 32:
-                raise ValueError(f"AES-256 key for '{kid}' must be exactly 32 bytes, got {len(key_bytes)}")
+                raise ValueError(
+                    f"AES-256 key for '{kid}' must be exactly 32 bytes, got {len(key_bytes)}"
+                )
 
     def encrypt(self, plaintext: str | bytes, key_id: str | None = None) -> str:
         """Encrypt plaintext into a versioned envelope: `v1:<key_id>:<nonce_b64>:<ciphertext_b64>:<tag_b64>`."""
@@ -169,12 +172,16 @@ class AES256GCMCipher:
             decrypted = aesgcm.decrypt(nonce, combined, None)
             return decrypted.decode("utf-8")
         except InvalidTag as e:
-            raise CryptoTamperException("Decryption failed: authentication tag mismatch or payload tampered") from e
+            raise CryptoTamperException(
+                "Decryption failed: authentication tag mismatch or payload tampered"
+            ) from e
         except Exception as e:
             raise CryptoTamperException(f"Decryption error: {e}") from e
 
     def __repr__(self) -> str:
-        return f"<AES256GCMCipher primary_key_id={self.primary_key_id!r} key_count={len(self._keys)}>"
+        return (
+            f"<AES256GCMCipher primary_key_id={self.primary_key_id!r} key_count={len(self._keys)}>"
+        )
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -185,7 +192,9 @@ def hash_api_key_secret(secret: str) -> str:
     return hashlib.sha256(secret.encode("utf-8")).hexdigest()
 
 
-def generate_api_key(tenant_id: str = "tenant_system", key_name: str = "api_key") -> tuple[str, str, str]:
+def generate_api_key(
+    tenant_id: str = "tenant_system", key_name: str = "api_key"
+) -> tuple[str, str, str]:
     """Generate a high-entropy API key.
 
     Returns:
@@ -198,4 +207,3 @@ def generate_api_key(tenant_id: str = "tenant_system", key_name: str = "api_key"
     full_key = f"tm_live_{prefix}_{secret}"
     hashed_secret = hash_api_key_secret(secret)
     return full_key, f"tm_{prefix}", hashed_secret
-

@@ -309,4 +309,3 @@ async def fit_anomaly_detectors(
         services_fitted=services_fitted,
         transitions_fitted=transitions_count,
     )
-

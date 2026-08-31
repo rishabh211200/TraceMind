@@ -373,4 +373,3 @@ async def get_stats(
         total_messages=stats_data["total_messages"],
         average_grounding_score=stats_data["average_grounding_score"],
     )
-

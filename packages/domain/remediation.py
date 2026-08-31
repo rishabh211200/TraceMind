@@ -65,7 +65,9 @@ class RemediationPolicy(BaseModel):
     """Declarative policy rule defining automated and supervised mitigation thresholds."""
 
     id: str
-    tenant_id: str = Field(default="tenant_system", description="Owning multi-tenant organization ID")
+    tenant_id: str = Field(
+        default="tenant_system", description="Owning multi-tenant organization ID"
+    )
     name: str
     workflow_definition_id: str = Field(
         default="*",
@@ -115,7 +117,9 @@ class RemediationActionPlan(BaseModel):
     """Actionable remediation plan synthesized from Root Cause Analysis and Pareto Optimization."""
 
     id: str
-    tenant_id: str = Field(default="tenant_system", description="Owning multi-tenant organization ID")
+    tenant_id: str = Field(
+        default="tenant_system", description="Owning multi-tenant organization ID"
+    )
     policy_id: str | None = None
     workflow_definition_id: str
     incident_id: str | None = None
@@ -137,4 +141,3 @@ class RemediationActionPlan(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     executed_at: datetime | None = None
     completed_at: datetime | None = None
-

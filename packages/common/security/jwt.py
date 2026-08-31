@@ -13,7 +13,6 @@ from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
-
 from packages.domain.security import AuthTokens, Permission, Role, User
 
 
@@ -67,7 +66,11 @@ class JWTTokenManager:
         self._in_memory_revoked_jtis: set[str] = set()
 
         if private_key_pem:
-            raw_priv = private_key_pem.encode("utf-8") if isinstance(private_key_pem, str) else private_key_pem
+            raw_priv = (
+                private_key_pem.encode("utf-8")
+                if isinstance(private_key_pem, str)
+                else private_key_pem
+            )
             self._private_key = serialization.load_pem_private_key(raw_priv, password=None)
             if not isinstance(self._private_key, rsa.RSAPrivateKey):
                 raise ValueError("Provided private key is not an RSA private key")
@@ -81,7 +84,11 @@ class JWTTokenManager:
             self._public_key = self._private_key.public_key()
 
         if public_key_pem and not private_key_pem:
-            raw_pub = public_key_pem.encode("utf-8") if isinstance(public_key_pem, str) else public_key_pem
+            raw_pub = (
+                public_key_pem.encode("utf-8")
+                if isinstance(public_key_pem, str)
+                else public_key_pem
+            )
             pub_key = serialization.load_pem_public_key(raw_pub)
             if not isinstance(pub_key, rsa.RSAPublicKey):
                 raise ValueError("Provided public key is not an RSA public key")
@@ -112,13 +119,11 @@ class JWTTokenManager:
         s_b64 = _b64url_encode(signature)
         return f"{h_b64}.{p_b64}.{s_b64}"
 
-
     def decode_and_verify(  # noqa: C901
         self,
         token: str,
         expected_type: str | None = None,
     ) -> dict[str, Any]:
-
         """Decode and verify RS256 signature, expiry, and revocation."""
         if not token or not isinstance(token, str):
             raise InvalidTokenException("Missing or invalid token string")
@@ -171,7 +176,9 @@ class JWTTokenManager:
         # Type Check
         token_type = payload.get("token_type")
         if expected_type and token_type != expected_type:
-            raise InvalidTokenException(f"Token type mismatch: expected '{expected_type}', got '{token_type}'")
+            raise InvalidTokenException(
+                f"Token type mismatch: expected '{expected_type}', got '{token_type}'"
+            )
 
         # Revocation Check (in-memory blocklist)
         jti = payload.get("jti")
@@ -284,7 +291,6 @@ class JWTTokenManager:
         roles: Sequence[Role | str] | None = None,
         permissions: Sequence[Permission | str] | None = None,
     ) -> AuthTokens:
-
         """Atomically decode, revoke, and rotate a single-use refresh token into new token pair."""
         payload = self.decode_and_verify(refresh_token, expected_type="refresh")
         jti = payload.get("jti")
@@ -318,8 +324,6 @@ class JWTTokenManager:
             roles=[r.value if isinstance(r, Role) else str(r) for r in assigned_roles],
             permissions=[p.value if isinstance(p, Permission) else str(p) for p in assigned_perms],
         )
-
-
 
 
 # Global singleton instance

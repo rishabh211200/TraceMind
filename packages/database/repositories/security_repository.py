@@ -69,7 +69,6 @@ class SecurityRepository:
             await self.session.flush()
         return tenant
 
-
     async def get_tenant_by_slug(self, slug: str) -> TenantModel | None:
         """Retrieve tenant by URL-safe slug."""
         stmt = select(TenantModel).where(TenantModel.slug == slug)
@@ -119,16 +118,18 @@ class SecurityRepository:
 
     async def list_users_for_tenant(self, tenant_id: str) -> list[UserModel]:
         """List all users belonging to a tenant."""
-        stmt = select(UserModel).where(UserModel.tenant_id == tenant_id).order_by(UserModel.created_at.asc())
+        stmt = (
+            select(UserModel)
+            .where(UserModel.tenant_id == tenant_id)
+            .order_by(UserModel.created_at.asc())
+        )
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
     async def update_last_login(self, user_id: str) -> None:
         """Update last login timestamp."""
         stmt = (
-            update(UserModel)
-            .where(UserModel.id == user_id)
-            .values(last_login_at=datetime.now(UTC))
+            update(UserModel).where(UserModel.id == user_id).values(last_login_at=datetime.now(UTC))
         )
         await self.session.execute(stmt)
         await self.session.flush()
@@ -228,7 +229,6 @@ class SecurityRepository:
         result = await self.session.execute(stmt)
         await self.session.flush()
         return int(getattr(result, "rowcount", 0))
-
 
     # ==========================================
     # Tenant Quota Management

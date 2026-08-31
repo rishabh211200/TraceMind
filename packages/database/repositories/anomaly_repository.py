@@ -90,7 +90,9 @@ class AnomalyRepository:
 
         return models
 
-    async def get_anomaly(self, anomaly_id: str, tenant_id: str | None = None) -> AnomalyModel | None:
+    async def get_anomaly(
+        self, anomaly_id: str, tenant_id: str | None = None
+    ) -> AnomalyModel | None:
         """Retrieve an anomaly record by its unique ID."""
         stmt = select(AnomalyModel).where(AnomalyModel.id == anomaly_id)
         if tenant_id:
@@ -192,4 +194,3 @@ class AnomalyRepository:
             "by_severity": by_severity,
             "by_type": by_type,
         }
-

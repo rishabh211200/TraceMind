@@ -112,7 +112,11 @@ async def get_tenant(
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> TenantResponse:
     """Retrieve tenant details. Users can access their own tenant, platform admins can access any."""
-    if not ctx.is_platform_admin and ctx.tenant_id != tenant_id and not ctx.has_permission(Permission.TENANTS_MANAGE):
+    if (
+        not ctx.is_platform_admin
+        and ctx.tenant_id != tenant_id
+        and not ctx.has_permission(Permission.TENANTS_MANAGE)
+    ):
         raise ForbiddenException("Cannot access other tenant profiles")
 
     repo = SecurityRepository(session)
@@ -141,9 +145,12 @@ async def get_tenant_quotas(
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> TenantQuotaResponse:
     """Retrieve rate limits and operational quotas for a tenant."""
-    if not ctx.is_platform_admin and ctx.tenant_id != tenant_id and not ctx.has_permission(Permission.QUOTAS_MANAGE):
+    if (
+        not ctx.is_platform_admin
+        and ctx.tenant_id != tenant_id
+        and not ctx.has_permission(Permission.QUOTAS_MANAGE)
+    ):
         raise ForbiddenException("Cannot inspect quotas for other tenants")
-
 
     repo = SecurityRepository(session)
     quotas = await repo.get_tenant_quotas(tenant_id)
@@ -179,7 +186,8 @@ async def update_tenant_quotas(
     new_quotas = TenantQuotas(
         tenant_id=tenant_id,
         max_requests_per_minute=req.max_requests_per_minute or existing.max_requests_per_minute,
-        max_concurrent_simulations=req.max_concurrent_simulations or existing.max_concurrent_simulations,
+        max_concurrent_simulations=req.max_concurrent_simulations
+        or existing.max_concurrent_simulations,
         max_active_workflows=req.max_active_workflows or existing.max_active_workflows,
         max_retention_days=req.max_retention_days or existing.max_retention_days,
     )

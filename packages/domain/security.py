@@ -70,7 +70,6 @@ class Permission(StrEnum):
 ROLE_PERMISSIONS_MAP: dict[Role, set[Permission]] = {
     Role.PLATFORM_ADMIN: set(Permission),
     Role.TENANT_ADMIN: {
-
         Permission.QUOTAS_MANAGE,
         Permission.USERS_MANAGE,
         Permission.API_KEYS_MANAGE,
@@ -182,7 +181,9 @@ class Tenant(BaseModel):
     name: str = Field(description="Display organization name")
     slug: str = Field(description="URL-safe unique tenant slug")
     is_active: bool = Field(default=True)
-    tier: str = Field(default="ENTERPRISE", description="Tenant subscription tier (STARTER, PRO, ENTERPRISE)")
+    tier: str = Field(
+        default="ENTERPRISE", description="Tenant subscription tier (STARTER, PRO, ENTERPRISE)"
+    )
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -206,7 +207,6 @@ class User(BaseModel):
         for role in self.roles:
             perms.update(ROLE_PERMISSIONS_MAP.get(role, set()))
         return perms
-
 
 
 class ApiKey(BaseModel):

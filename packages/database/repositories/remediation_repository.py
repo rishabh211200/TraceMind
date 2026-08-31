@@ -28,7 +28,9 @@ class RemediationRepository:
     # Policies
     # -------------------------------------------------------------------------
 
-    async def get_policy(self, policy_id: str, tenant_id: str | None = None) -> RemediationPolicyModel | None:
+    async def get_policy(
+        self, policy_id: str, tenant_id: str | None = None
+    ) -> RemediationPolicyModel | None:
         """Fetch policy by ID."""
         stmt = select(RemediationPolicyModel).where(RemediationPolicyModel.id == policy_id)
         if tenant_id:
@@ -110,7 +112,9 @@ class RemediationRepository:
     # Action Plans
     # -------------------------------------------------------------------------
 
-    async def get_plan(self, plan_id: str, tenant_id: str | None = None) -> RemediationActionPlanModel | None:
+    async def get_plan(
+        self, plan_id: str, tenant_id: str | None = None
+    ) -> RemediationActionPlanModel | None:
         """Fetch remediation plan by ID."""
         stmt = select(RemediationActionPlanModel).where(RemediationActionPlanModel.id == plan_id)
         if tenant_id:
@@ -313,4 +317,3 @@ class RemediationRepository:
         )
         res = await self.session.execute(stmt)
         return list(res.scalars().all()), total
-

@@ -65,7 +65,9 @@ class RootCauseRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_execution_id(self, execution_id: str, tenant_id: str | None = None) -> list[RootCauseModel]:
+    async def get_by_execution_id(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> list[RootCauseModel]:
         """Fetch all root-cause diagnoses associated with a workflow execution."""
         stmt = (
             select(RootCauseModel)
@@ -174,4 +176,3 @@ class RootCauseRepository:
             "by_culprit_service": by_culprit,
             "mean_confidence": round(mean_conf, 3),
         }
-

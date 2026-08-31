@@ -17,7 +17,9 @@ class IncidentModel(Base, TimestampMixin):
     id: Mapped[str] = mapped_column(
         String(64), primary_key=True, doc="Unique incident ID (e.g. inc_000100_database)"
     )
-    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     scenario_type: Mapped[str] = mapped_column(
         String(64),
         nullable=False,

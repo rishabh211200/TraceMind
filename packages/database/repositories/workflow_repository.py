@@ -207,7 +207,9 @@ class WorkflowRepository:
             await self.session.refresh(execution)
             return execution
 
-    async def bulk_create_executions(self, records: list[dict[str, Any]], tenant_id: str = "tenant_system") -> int:
+    async def bulk_create_executions(
+        self, records: list[dict[str, Any]], tenant_id: str = "tenant_system"
+    ) -> int:
         """Bulk insert executions ignoring existing IDs for idempotency."""
         if not records:
             return 0
@@ -298,4 +300,3 @@ class WorkflowRepository:
             stmt = stmt.where(WorkflowExecutionModel.started_at <= end_time)
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
-

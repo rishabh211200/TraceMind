@@ -137,7 +137,6 @@ class AnalystRepository:
         )
         self.session.add(msg)
 
-
         # Touch conversation updated_at
         conv_stmt = select(AnalystConversationModel).where(
             AnalystConversationModel.id == conversation_id
@@ -190,4 +189,3 @@ class AnalystRepository:
             "total_messages": total_msgs,
             "average_grounding_score": round(float(avg_grounding), 3),
         }
-

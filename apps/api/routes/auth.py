@@ -51,7 +51,9 @@ async def login(
         raise AuthenticationException("Invalid email or password", error_code="INVALID_CREDENTIALS")
 
     if not user_model.is_active:
-        raise ForbiddenException("User account is inactive. Please contact administrator.", error_code="ACCOUNT_INACTIVE")
+        raise ForbiddenException(
+            "User account is inactive. Please contact administrator.", error_code="ACCOUNT_INACTIVE"
+        )
 
     if not hasher.verify_password(req.password, user_model.hashed_password):
         raise AuthenticationException("Invalid email or password", error_code="INVALID_CREDENTIALS")
@@ -90,11 +92,17 @@ async def refresh_token(
     try:
         payload = jwt_mgr.decode_and_verify(req.refresh_token, expected_type="refresh")
     except TokenExpiredException as e:
-        raise AuthenticationException(f"Refresh token expired: {e}", error_code="REFRESH_TOKEN_EXPIRED") from e
+        raise AuthenticationException(
+            f"Refresh token expired: {e}", error_code="REFRESH_TOKEN_EXPIRED"
+        ) from e
     except TokenRevokedException as e:
-        raise AuthenticationException(f"Refresh token has been revoked: {e}", error_code="REFRESH_TOKEN_REVOKED") from e
+        raise AuthenticationException(
+            f"Refresh token has been revoked: {e}", error_code="REFRESH_TOKEN_REVOKED"
+        ) from e
     except Exception as e:
-        raise AuthenticationException(f"Invalid refresh token: {e}", error_code="INVALID_REFRESH_TOKEN") from e
+        raise AuthenticationException(
+            f"Invalid refresh token: {e}", error_code="INVALID_REFRESH_TOKEN"
+        ) from e
 
     old_jti = payload.get("jti")
     user_id = payload.get("sub")
@@ -102,11 +110,15 @@ async def refresh_token(
     exp_ts = payload.get("exp", int(datetime.now(UTC).timestamp()) + 604800)
 
     if not old_jti or not user_id or not tenant_id:
-        raise AuthenticationException("Malformed refresh token claims", error_code="MALFORMED_CLAIMS")
+        raise AuthenticationException(
+            "Malformed refresh token claims", error_code="MALFORMED_CLAIMS"
+        )
 
     # Check DB revocation blocklist
     if await repo.is_token_revoked(old_jti):
-        raise AuthenticationException("Refresh token has already been consumed or revoked", error_code="TOKEN_REVOKED")
+        raise AuthenticationException(
+            "Refresh token has already been consumed or revoked", error_code="TOKEN_REVOKED"
+        )
 
     # Revoke old refresh token JTI immediately (single-use rotation)
     jwt_mgr.revoke_jti(old_jti)
@@ -122,7 +134,9 @@ async def refresh_token(
     user_model = await repo.get_user_by_id(user_id)
     if not user_model or not user_model.is_active:
         await session.commit()
-        raise AuthenticationException("User account associated with token is inactive or deleted", error_code="USER_NOT_FOUND")
+        raise AuthenticationException(
+            "User account associated with token is inactive or deleted", error_code="USER_NOT_FOUND"
+        )
 
     domain_roles = [Role(r) for r in (user_model.roles or []) if r in Role._value2member_map_]
     user_domain = User(
@@ -221,7 +235,9 @@ async def get_current_user_profile(
     )
 
 
-@router.post("/register", response_model=UserResponse, summary="Self-Registration / User Provisioning")
+@router.post(
+    "/register", response_model=UserResponse, summary="Self-Registration / User Provisioning"
+)
 async def register(
     req: RegisterRequest,
     session: AsyncSession = Depends(get_db_session),
@@ -237,7 +253,9 @@ async def register(
     # Check for existing email in tenant
     existing = await repo.get_user_by_email(req.email, tenant_id=req.tenant_id)
     if existing:
-        raise ConflictException(f"User with email '{req.email}' already exists in tenant '{req.tenant_id}'")
+        raise ConflictException(
+            f"User with email '{req.email}' already exists in tenant '{req.tenant_id}'"
+        )
 
     hashed_pw = hasher.hash_password(req.password)
     user_domain = User(

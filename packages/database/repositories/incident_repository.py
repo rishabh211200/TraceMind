@@ -16,7 +16,9 @@ class IncidentRepository:
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def get_incident(self, incident_id: str, tenant_id: str | None = None) -> IncidentModel | None:
+    async def get_incident(
+        self, incident_id: str, tenant_id: str | None = None
+    ) -> IncidentModel | None:
         """Fetch ground-truth incident by ID."""
         stmt = select(IncidentModel).where(IncidentModel.id == incident_id)
         if tenant_id:
@@ -52,7 +54,9 @@ class IncidentRepository:
             await self.session.refresh(new_incident)
             return new_incident
 
-    async def bulk_create_incidents(self, records: list[dict[str, Any]], tenant_id: str = "tenant_system") -> int:
+    async def bulk_create_incidents(
+        self, records: list[dict[str, Any]], tenant_id: str = "tenant_system"
+    ) -> int:
         """Bulk insert incidents with idempotency."""
         if not records:
             return 0
@@ -118,4 +122,3 @@ class IncidentRepository:
         stmt = stmt.limit(limit).offset(offset)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
-

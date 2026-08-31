@@ -347,4 +347,3 @@ async def get_workflow_stats(
         tenant_id=ctx.tenant_id,
     )
     return WorkflowStatsResponse(**stats)
-

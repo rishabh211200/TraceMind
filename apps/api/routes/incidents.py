@@ -161,4 +161,3 @@ async def get_incident_traces(
         )
         for t in traces
     ]
-

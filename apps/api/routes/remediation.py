@@ -140,7 +140,10 @@ async def synthesize_plan(
                 plan_id=plan.id,
                 event_type="ACTUATION_COMMITTED",
                 actor="AUTONOMOUS_POLICY",
-                payload={"post_state": act_res.post_state.model_dump(mode="json"), "tenant_id": ctx.tenant_id},
+                payload={
+                    "post_state": act_res.post_state.model_dump(mode="json"),
+                    "tenant_id": ctx.tenant_id,
+                },
             )
 
             # Auto-trigger health verifier
@@ -173,7 +176,11 @@ async def list_plans(
     ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[RemediationPlanResponse]:
     """Lists remediation action plans with filtering."""
-    results = [p for p in _stored_plans.values() if ctx.is_platform_admin or getattr(p, "tenant_id", "tenant_system") == ctx.tenant_id]
+    results = [
+        p
+        for p in _stored_plans.values()
+        if ctx.is_platform_admin or getattr(p, "tenant_id", "tenant_system") == ctx.tenant_id
+    ]
     if workflow_definition_id:
         results = [p for p in results if p.workflow_definition_id == workflow_definition_id]
     if status:
@@ -253,12 +260,13 @@ async def execute_plan(
 
     # Non-bypassable M14 Safety Invariants: even with ADMIN role, unsafe plan cannot execute
     if plan.safety_report and not plan.safety_report.is_safe:
-        reasons = getattr(plan.safety_report, "rejection_reasons", getattr(plan.safety_report, "violations", []))
+        reasons = getattr(
+            plan.safety_report, "rejection_reasons", getattr(plan.safety_report, "violations", [])
+        )
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"M14 Safety Guard Violation: Plan is deemed unsafe ({reasons}) and cannot be executed.",
         )
-
 
     plan.status = ActionPlanStatus.EXECUTING
     plan.executed_at = datetime.now(UTC)
@@ -293,7 +301,10 @@ async def execute_plan(
         plan_id=plan.id,
         event_type="ACTUATION_COMMITTED",
         actor=actor,
-        payload={"post_state": act_res.post_state.model_dump(mode="json"), "tenant_id": ctx.tenant_id},
+        payload={
+            "post_state": act_res.post_state.model_dump(mode="json"),
+            "tenant_id": ctx.tenant_id,
+        },
     )
 
     # Trigger post-actuation verification
@@ -352,7 +363,10 @@ async def rollback_plan(
             plan_id=plan.id,
             event_type="ROLLBACK_COMPLETED",
             actor=actor,
-            payload={"restored_state": rollback_res.restored_state.model_dump(mode="json"), "tenant_id": ctx.tenant_id},
+            payload={
+                "restored_state": rollback_res.restored_state.model_dump(mode="json"),
+                "tenant_id": ctx.tenant_id,
+            },
         )
     else:
         plan.execution_error = rollback_res.message
@@ -484,4 +498,3 @@ async def get_mesh_state(
     """Returns active runtime routing weights, circuits, and throttles."""
     state = await _actuator.get_current_state()
     return LiveMeshStateResponse.model_validate(state.model_dump(mode="json"))
-

@@ -41,7 +41,9 @@ class TraceEvent(BaseModel):
     """Canonical trace event emitted during workflow execution."""
 
     event_id: str = Field(default_factory=lambda: f"evt_{uuid4().hex[:12]}")
-    tenant_id: str = Field(default="tenant_system", description="Owning multi-tenant organization ID")
+    tenant_id: str = Field(
+        default="tenant_system", description="Owning multi-tenant organization ID"
+    )
     execution_id: str = Field(..., description="Unique workflow execution run ID")
     workflow_id: str = Field(..., description="Workflow definition identifier")
     timestamp: datetime = Field(
@@ -56,4 +58,3 @@ class TraceEvent(BaseModel):
     parent_event_id: str | None = Field(default=None, description="Parent trace event ID")
     correlation_id: str | None = Field(default=None, description="Distributed correlation ID")
     metadata: dict[str, Any] = Field(default_factory=dict, description="Arbitrary trace context")
-

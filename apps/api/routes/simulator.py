@@ -246,4 +246,3 @@ async def inject_chaos(
         retry_rate_percent=round(retry_rate, 2),
         persisted_to_db=payload.persist_to_db,
     )
-

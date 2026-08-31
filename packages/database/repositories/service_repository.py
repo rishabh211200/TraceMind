@@ -74,7 +74,6 @@ class ServiceRepository:
         await self.session.refresh(service)
         return service
 
-
     def _classify_rel_type(self, dep_name: str) -> str:
         if "cache" in dep_name:
             return "CACHE_LOOKUP"

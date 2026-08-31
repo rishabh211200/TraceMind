@@ -140,27 +140,35 @@ async def run_all_benchmarks():
     print("\n[1/4] Running AES-256-GCM Envelope Encryption Benchmark...")
     aes_res = benchmark_aes256_gcm(iterations=10_000)
     print(f"  Iterations:          {aes_res['iterations']}")
-    print(f"  Encrypt Throughput:  {aes_res['encrypt_ops_per_sec']:,.0f} ops/sec (latency: {aes_res['encrypt_latency_us']:.2f} µs)")
-    print(f"  Decrypt Throughput:  {aes_res['decrypt_ops_per_sec']:,.0f} ops/sec (latency: {aes_res['decrypt_latency_us']:.2f} µs)")
-    assert aes_res['decrypt_ops_per_sec'] >= 5_000, "AES-256-GCM throughput below 5,000 ops/s"
+    print(
+        f"  Encrypt Throughput:  {aes_res['encrypt_ops_per_sec']:,.0f} ops/sec (latency: {aes_res['encrypt_latency_us']:.2f} µs)"
+    )
+    print(
+        f"  Decrypt Throughput:  {aes_res['decrypt_ops_per_sec']:,.0f} ops/sec (latency: {aes_res['decrypt_latency_us']:.2f} µs)"
+    )
+    assert aes_res["decrypt_ops_per_sec"] >= 5_000, "AES-256-GCM throughput below 5,000 ops/s"
 
     # 2. RS256 JWT
     print("\n[2/4] Running RS256 JWT Token Signing & Verification Benchmark...")
     jwt_res = benchmark_rs256_jwt(iterations=2_000)
     print(f"  Iterations:          {jwt_res['iterations']}")
-    print(f"  Sign Throughput:     {jwt_res['sign_ops_per_sec']:,.0f} ops/sec (latency: {jwt_res['sign_latency_ms']:.3f} ms)")
+    print(
+        f"  Sign Throughput:     {jwt_res['sign_ops_per_sec']:,.0f} ops/sec (latency: {jwt_res['sign_latency_ms']:.3f} ms)"
+    )
     print(f"  Verify Throughput:   {jwt_res['verify_ops_per_sec']:,.0f} ops/sec")
     print(f"  Verify Latency Mean: {jwt_res['verify_mean_latency_ms']:.4f} ms")
     print(f"  Verify Latency P95:  {jwt_res['verify_p95_latency_ms']:.4f} ms")
     print(f"  Verify Latency P99:  {jwt_res['verify_p99_latency_ms']:.4f} ms")
-    assert jwt_res['verify_mean_latency_ms'] < 2.0, "RS256 verification mean latency exceeds 2.0ms"
+    assert jwt_res["verify_mean_latency_ms"] < 2.0, "RS256 verification mean latency exceeds 2.0ms"
 
     # 3. Sliding Window Rate Limiter
     print("\n[3/4] Running In-Memory Sliding-Window Rate Limiter Benchmark...")
     rl_res = await benchmark_sliding_window_rate_limiter(iterations=50_000)
     print(f"  Iterations:          {rl_res['iterations']}")
-    print(f"  Throughput:          {rl_res['ops_per_sec']:,.0f} ops/sec (latency: {rl_res['latency_us']:.3f} µs)")
-    assert rl_res['ops_per_sec'] >= 30_000, "Rate limiter throughput below 30,000 ops/s"
+    print(
+        f"  Throughput:          {rl_res['ops_per_sec']:,.0f} ops/sec (latency: {rl_res['latency_us']:.3f} µs)"
+    )
+    assert rl_res["ops_per_sec"] >= 30_000, "Rate limiter throughput below 30,000 ops/s"
 
     # 4. Argon2id Password Hashing
     print("\n[4/4] Running Argon2id (m=19MiB, t=2, p=1) Password Hashing Benchmark...")

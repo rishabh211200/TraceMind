@@ -62,7 +62,9 @@ class OptimizationRepository:
         await self.session.refresh(model)
         return model
 
-    async def get_by_id(self, optimization_id: str, tenant_id: str | None = None) -> OptimizationModel | None:
+    async def get_by_id(
+        self, optimization_id: str, tenant_id: str | None = None
+    ) -> OptimizationModel | None:
         """Fetch a specific optimization recommendation by ID."""
         stmt = select(OptimizationModel).where(OptimizationModel.id == optimization_id)
         if tenant_id:
@@ -168,4 +170,3 @@ class OptimizationRepository:
                 else None
             ),
         }
-

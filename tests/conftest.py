@@ -94,7 +94,6 @@ def test_db_session():
     Base.metadata.drop_all(engine)
 
 
-
 @pytest.fixture
 def temp_dir() -> Generator[Path, None, None]:
     """Isolated test workspace directory fixture without OS tempfile symlink issues."""
@@ -132,4 +131,3 @@ async def async_client(test_db_session) -> AsyncGenerator[AsyncClient, None]:
     ) as client:
         yield client
     app.dependency_overrides.clear()
-

@@ -15,7 +15,9 @@ class WorkflowDefinitionModel(Base, TimestampMixin):
     __tablename__ = "workflow_definitions"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True, index=True)
-    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     name: Mapped[str] = mapped_column(String(128), nullable=False)
     version: Mapped[str] = mapped_column(String(32), default="1.0.0", nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -41,7 +43,9 @@ class WorkflowExecutionModel(Base):
         index=True,
         doc="Unique workflow execution ID (e.g. exec_42_000001)",
     )
-    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), default="tenant_system", index=True, nullable=False
+    )
     workflow_definition_id: Mapped[str] = mapped_column(
         String(64),
         ForeignKey("workflow_definitions.id"),
@@ -76,4 +80,3 @@ class WorkflowExecutionModel(Base):
     workflow_definition: Mapped["WorkflowDefinitionModel"] = relationship(
         "WorkflowDefinitionModel", back_populates="executions"
     )
-
