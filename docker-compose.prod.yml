@@ -1,0 +1,251 @@
+services:
+  postgres:
+    image: timescale/timescaledb:latest-pg16
+    container_name: tracemind-prod-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tracemind}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tracemind_secret}
+      POSTGRES_DB: ${POSTGRES_DB:-tracemind_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tracemind} -d ${POSTGRES_DB:-tracemind_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - tracemind-internal
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: tracemind-prod-kafka
+    restart: always
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_NUM_PARTITIONS: 3
+    volumes:
+      - kafka_prod_data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD", "opt/kafka/bin/kafka-broker-api-versions.sh", "--bootstrap-server", "localhost:9092"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - tracemind-internal
+
+  migrator:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.migrator
+    container_name: tracemind-prod-migrator
+    restart: "no"
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tracemind}:${POSTGRES_PASSWORD:-tracemind_secret}@postgres:5432/${POSTGRES_DB:-tracemind_db}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - tracemind-internal
+
+  api:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.api
+    container_name: tracemind-prod-api
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tracemind}:${POSTGRES_PASSWORD:-tracemind_secret}@postgres:5432/${POSTGRES_DB:-tracemind_db}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_API_KEY: ${AI_API_KEY:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2048M
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - tracemind-internal
+
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.worker
+    container_name: tracemind-prod-worker
+    restart: always
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tracemind}:${POSTGRES_PASSWORD:-tracemind_secret}@postgres:5432/${POSTGRES_DB:-tracemind_db}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_CONSUMER_GROUP: tracemind-prod-ingestor
+      KAFKA_BATCH_SIZE: 1000
+      KAFKA_FLUSH_INTERVAL_MS: 50
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+        reservations:
+          cpus: "0.2"
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - tracemind-internal
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/Dockerfile.frontend
+    container_name: tracemind-prod-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+        reservations:
+          cpus: "0.1"
+          memory: 64M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+    networks:
+      - tracemind-internal
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: tracemind-prod-prometheus
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_prod_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    depends_on:
+      - api
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    networks:
+      - tracemind-internal
+
+  grafana:
+    image: grafana/grafana:11.1.0
+    container_name: tracemind-prod-grafana
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-tracemind_admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./infrastructure/monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infrastructure/monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infrastructure/monitoring/grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana_prod_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
+    networks:
+      - tracemind-internal
+
+volumes:
+  postgres_prod_data:
+  kafka_prod_data:
+  prometheus_prod_data:
+  grafana_prod_data:
+
+networks:
+  tracemind-internal:
+    driver: bridge

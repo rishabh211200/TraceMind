@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tracemind-worker
+  namespace: tracemind
+  labels:
+    app.kubernetes.io/name: tracemind-worker
+    app.kubernetes.io/component: streaming-consumer
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: tracemind-worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: tracemind-worker
+        app.kubernetes.io/component: streaming-consumer
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+      containers:
+        - name: worker
+          image: ghcr.io/rishabh211200/tracemind-worker:latest
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - configMapRef:
+                name: tracemind-config
+            - secretRef:
+                name: tracemind-secrets
+          resources:
+            limits:
+              cpu: "1000m"
+              memory: "1024Mi"
+            requests:
+              cpu: "250m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
