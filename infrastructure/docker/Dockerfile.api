@@ -1,6 +1,9 @@
-FROM python:3.12-slim
+# ==========================================
+# Stage 1: Build & Dependency Resolution
+# ==========================================
+FROM python:3.12-slim AS builder
 
-WORKDIR /app
+WORKDIR /build
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -8,21 +11,53 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Install uv for fast dependency resolution
+# Install uv binary
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy project definition
-COPY pyproject.toml README.md /app/
+# Copy project manifest and install dependencies into a clean directory
+COPY pyproject.toml README.md /build/
+RUN uv pip install --system --target=/install -e ".[dev,ml]"
 
-# Install dependencies into system python
-RUN uv pip install --system -e ".[dev,ml]"
+# ==========================================
+# Stage 2: Hardened Runtime Container
+# ==========================================
+FROM python:3.12-slim AS runtime
+
+WORKDIR /app
+
+# Install runtime dependencies for health probing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create dedicated non-root application user and group (UID 10001)
+RUN groupadd -g 10001 tracemind && \
+    useradd -u 10001 -g tracemind -s /bin/false -m tracemind
+
+# Copy installed python site-packages from builder stage
+COPY --from=builder /install /usr/local/lib/python3.12/site-packages
+COPY --from=builder /bin/uv /bin/uv
 
 # Copy application source code
-COPY apps /app/apps
-COPY packages /app/packages
-COPY migrations /app/migrations
-COPY alembic.ini /app/
+COPY --chown=tracemind:tracemind apps /app/apps
+COPY --chown=tracemind:tracemind packages /app/packages
+COPY --chown=tracemind:tracemind migrations /app/migrations
+COPY --chown=tracemind:tracemind alembic.ini pyproject.toml README.md /app/
+
+# Environment Variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONPATH=/app \
+    ENVIRONMENT=production
+
+# Switch to non-root user
+USER tracemind:tracemind
 
 EXPOSE 8000
 
-CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Container Healthcheck (RFC 7807 Health Probe)
+HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-access-log"]

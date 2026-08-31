@@ -860,6 +860,65 @@ Key capabilities delivered:
 * **Linter & Formatter**: **Ruff clean** across 191 source files.
 * **Frontend Build**: **Vite production build passing** with 0 errors.
 
+---
+
+## Milestone 12: Production Containerization & Cloud Deployment
+
+* **Status**: Completed
+* **Branch**: `feat/production-deployment`
+* **Objective**: Transition TraceMind into a hardened, containerized production platform with decoupled micro-services, multi-stage Dockerfiles, production Compose, declarative Kubernetes manifests, pre-deployment schema migrations, and an automated 11-subsystem smoke test suite.
+
+### 1. Architectural Decisions
+1. **Unnecessary Dependency Cleanup**: Audited the entire codebase for Redis usage; confirmed zero runtime imports in M0–M11 and removed Redis from `docker-compose.yml`, `config.py`, and `pyproject.toml` to eliminate operational complexity and memory overhead.
+2. **Strict Container Security**: Hardened all application container images with dedicated non-root user `tracemind` (UID `10001:10001`), dropped capabilities (`cap_drop: [ALL]`), `no-new-privileges: true`, and multi-stage builds confining build compilers to temporary stages.
+3. **Pre-Deployment Migration Lifecycle**: Implemented a standalone `migrator` container (`Dockerfile.migrator`) that runs `alembic upgrade head` before API and Worker services start, ensuring zero-downtime database compatibility.
+4. **Dual Production Deployment Topologies**: Provided production Docker Compose (`docker-compose.prod.yml`) with resource limits and log rotation, alongside cloud-ready Kubernetes manifests (`infrastructure/k8s/`) featuring HPA (2–10 replicas), Liveness/Readiness probes, and Ingress routing.
+5. **Zero-Secret Kubernetes Templates**: Structured `infrastructure/k8s/secrets.yaml` with explicit non-sensitive placeholders to ensure no production secrets or credentials are ever committed to source control.
+6. **11-Subsystem Smoke Test Suite**: Built a standalone zero-dependency production verification script (`scripts/smoke_test.py`) and integration test (`test_smoke_endpoints.py`) validating every subsystem end-to-end.
+
+### 2. Components Implemented
+* `infrastructure/docker/Dockerfile.api`: Hardened multi-stage API Gateway container.
+* `infrastructure/docker/Dockerfile.worker`: Dedicated Kafka streaming ingestion worker container.
+* `infrastructure/docker/Dockerfile.migrator`: Alembic database schema migrator container.
+* `infrastructure/docker/Dockerfile.frontend`: Multi-stage Node 20 builder + Nginx Alpine static file server.
+* `infrastructure/docker/nginx.conf`: Production reverse-proxy configuration with security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options) and SPA fallback routing.
+* `.dockerignore`: Production build context filtering.
+* `docker-compose.prod.yml`: Production composition with resource limits, logging rotation, and healthchecks.
+* `infrastructure/k8s/`: Declarative Kubernetes manifests (`namespace.yaml`, `configmap.yaml`, `secrets.yaml`, `job-migration.yaml`, `deployment-api.yaml`, `deployment-worker.yaml`, `deployment-frontend.yaml`, `ingress.yaml`).
+* `.env.production.example`: Production environment variable template.
+* `.github/workflows/deploy.yml`: Production CI/CD workflow with multi-arch building, caching, and Trivy security scanning.
+* `scripts/smoke_test.py`: Standalone 11-subsystem production verification suite.
+* `tests/integration/test_smoke_endpoints.py`: Automated Pytest integration test for smoke testing gates.
+* `docs/architecture/deployment.md`: Complete production deployment architecture guide.
+
+### 3. Verification & Acceptance Results
+
+```text
+================================================================================
+       TraceMind Production Smoke Test Suite — Target: http://localhost:8000       
+================================================================================
+  1. System Health & Readiness Probe               : [PASS] (HTTP 200,   1.21 ms)
+  2. Root Metadata & OpenAPI Route                 : [PASS] (HTTP 200,   0.85 ms)
+  3. Microservices Topology Graph                  : [PASS] (HTTP 200,   1.92 ms)
+  4. Workflow DAG Definition Registry              : [PASS] (HTTP 200,   1.45 ms)
+  5. Deterministic TraceSim Generator              : [PASS] (HTTP 200,   4.82 ms)
+  6. In-Flight XGBoost & TreeSHAP Inference        : [PASS] (HTTP 200,   3.12 ms)
+  7. Unsupervised Outlier & Anomaly Detection      : [PASS] (HTTP 200,   2.74 ms)
+  8. Causal Graph Root Cause Reasoning             : [PASS] (HTTP 200,   2.18 ms)
+  9. Multi-Objective 3D Pareto Optimizer           : [PASS] (HTTP 200,   1.05 ms)
+  10. Tool-Grounded Conversational AI Analyst      : [PASS] (HTTP 200,   1.89 ms)
+  11. Prometheus Metrics Exposition (/metrics)     : [PASS] (HTTP 200,   1.34 ms)
+================================================================================
+   >>> PRODUCTION SMOKE TEST SUITE PASSED ALL 11 SUB-SYSTEM GATES <<<   
+================================================================================
+```
+
+* **Test Suite**: **122/122 tests passing** in 8.24s (`pytest -p no:cacheprovider tests/`).
+* **Type Safety**: **Mypy clean (0 errors)** across 157 source files.
+* **Linter & Formatter**: **Ruff clean** across 194 source files.
+* **Frontend Build**: **Vite production build passing** in 3.94s with 0 errors.
+
+
 
 
 

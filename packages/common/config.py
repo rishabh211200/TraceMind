@@ -34,9 +34,17 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://tracemind:tracemind_secret@localhost:5432/tracemind_db",
         description="Async SQLAlchemy database connection URL",
     )
-    redis_url: str = Field(
-        default="redis://localhost:6379/0",
-        description="Redis connection URL for caching and temporary state",
+    database_pool_size: int = Field(
+        default=10,
+        description="Async SQLAlchemy connection pool size",
+    )
+    database_max_overflow: int = Field(
+        default=20,
+        description="Maximum overflow connections in database pool",
+    )
+    database_pool_timeout: float = Field(
+        default=30.0,
+        description="Seconds to wait before database pool connection acquisition timeout",
     )
 
     # Event Streaming
