@@ -9,6 +9,7 @@ import { SimulatorView } from './views/SimulatorView';
 import { AnomaliesView } from './views/AnomaliesView';
 import { RootCauseView } from './views/RootCauseView';
 import { OptimizerView } from './views/OptimizerView';
+import { RemediationView } from './views/RemediationView';
 import { AnalystView } from './views/AnalystView';
 
 export const App: React.FC = () => {
@@ -85,6 +86,10 @@ export const App: React.FC = () => {
           <OptimizerView />
         )}
 
+        {activeTab === 'remediation' && (
+          <RemediationView />
+        )}
+
         {activeTab === 'analyst' && (
           <AnalystView />
         )}
@@ -97,6 +102,7 @@ export const App: React.FC = () => {
           <SimulatorView onNavigateExecutions={() => setActiveTab('executions')} />
         )}
       </main>
+
 
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 py-4 text-center text-xs font-mono text-slate-500">

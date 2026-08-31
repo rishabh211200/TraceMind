@@ -10,6 +10,15 @@ from packages.domain.intelligence import (
     Recommendation,
     RootCauseHypothesis,
 )
+from packages.domain.remediation import (
+    ActionPlanStatus,
+    ActionType,
+    ExecutionMode,
+    RemediationActionPlan,
+    RemediationPolicy,
+    SafetyCheckReport,
+    StateSnapshot,
+)
 from packages.domain.service import ServiceDefinition
 from packages.domain.workflow import (
     ExecutionStatus,
@@ -40,4 +49,11 @@ __all__ = [
     "Anomaly",
     "RootCauseHypothesis",
     "Recommendation",
+    "ActionType",
+    "ExecutionMode",
+    "ActionPlanStatus",
+    "StateSnapshot",
+    "RemediationPolicy",
+    "SafetyCheckReport",
+    "RemediationActionPlan",
 ]

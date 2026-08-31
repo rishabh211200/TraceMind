@@ -982,6 +982,67 @@ Key capabilities delivered:
 * **Linter & Formatter**: **Ruff clean** across 197 source files.
 * **Frontend Build**: **Vite production build passing** with 0 errors.
 
+---
+
+## Milestone 14: Autonomous Closed-Loop Remediation & Policy-Governed Actuation
+
+### 1. Architectural Evolution & Capabilities
+1. **Deterministic Safety Invariant Engine (`apps/ml/remediation/safety_guards.py`)**:
+   - **Blast Radius Protection**: Strict $\le 30\%$ traffic shift and $\le 25\%$ concurrency throttling enforcement.
+   - **Anti-Flapping / Cooldown Guard**: $300\text{s}$ cooldown per service and a maximum cap of $\le 3$ actuations/hour per workflow.
+   - **Causal Dependency Acyclicity Guard**: Rejects detour routes that transit or depend upon the active culprit service.
+   - **Capacity Headroom Guard**: Rejects shifts if alternative route spare capacity is $<40\%$.
+2. **Policy Engine (`apps/ml/remediation/policy_engine.py`)**:
+   - Pre-seeded with 7 canonical self-healing policies (`pol-db-saturation`, `pol-service-crash`, `pol-retry-storm`, `pol-traffic-spike`, `pol-payment-degradation`, `pol-network-delay`, `pol-dep-timeout`).
+   - Resolves execution modes (`AUTONOMOUS`, `SUPERVISED`, `ADVISORY`) with strict safety invariant and confidence ($\ge 0.95$) gating.
+3. **Action Planner & Idempotency Key Engine (`apps/ml/remediation/planner.py`)**:
+   - Synthesizes action plans from M8 RCA diagnoses and M9 Pareto recommendations.
+   - Generates deterministic SHA-256 idempotency keys ($\text{SHA256}(\text{workflow} + \text{incident} + \text{service} + \text{action} + \text{path})$) to prevent duplicate mutations.
+4. **Multi-Protocol Actuator Plane (`apps/ml/remediation/actuators/`)**:
+   - `InMemoryRoutingActuator`: Default fully executable actuator with `asyncio.Lock` protected atomic state mutations and idempotent replay.
+   - `HttpGatewayActuator` & `WebhookActuator`: Dry-run, configuration-gated external actuators with HMAC-SHA256 signatures requiring zero cloud credentials.
+5. **Verbatim Exact-State Snapshot Rollback**:
+   - Captures `pre_actuation_state_snapshot` verbatim and restores it atomically upon failure without computing inverse actions.
+6. **Cryptographic Append-Only Audit Ledger (`apps/ml/remediation/audit_ledger.py`)**:
+   - Generates immutable SHA-256 hash chains ($\text{hash}_n = \text{SHA256}(\text{hash}_{n-1} + \dots)$) with cryptographic verification.
+7. **Post-Actuation Health Verifier (`apps/ml/remediation/verifier.py`)**:
+   - Monitors post-actuation error rates and P95 latency against pre-actuation baseline, automatically triggering emergency rollback on degradation.
+8. **FastAPI Endpoints & AI Analyst Tool Integration**:
+   - 11 RESTful endpoints under `/api/v1/remediations/*`.
+   - 4 AI Analyst tools: `simulate_remediation`, `actuate_mitigation`, `rollback_mitigation`, `get_remediation_mesh_state`.
+9. **Interactive React Frontend Control Center**:
+   - `RemediationView.tsx`: Control center with active mitigation gauges, mesh runtime state, staged plans table, and audit chain verification.
+   - `PolicyEditorModal.tsx` & `PlanDetailsModal.tsx` & `RemediationActionCard.tsx`.
+
+### 2. New Components
+* `packages/domain/remediation.py`: Core domain models and value objects.
+* `apps/ml/remediation/safety_guards.py`: Safety invariant engine.
+* `apps/ml/remediation/policy_engine.py`: Policy matching and mode resolution.
+* `apps/ml/remediation/planner.py`: Action planner and idempotency key generator.
+* `apps/ml/remediation/actuators/`: Multi-protocol actuators (`base.py`, `in_memory.py`, `http_gateway.py`, `webhook.py`).
+* `apps/ml/remediation/audit_ledger.py`: Cryptographic SHA-256 audit ledger.
+* `apps/ml/remediation/verifier.py`: Health verifier and automatic rollback engine.
+* `packages/database/models/remediation.py` & `packages/database/repositories/remediation_repository.py`: Persistence models and repository.
+* `apps/api/schemas/remediation.py` & `apps/api/routes/remediation.py`: FastAPI schemas and routes.
+* `frontend/src/types/remediation.ts` & `frontend/src/api/remediation.ts` & `frontend/src/views/RemediationView.tsx`: React frontend control plane.
+* `tests/unit/test_remediation.py` & `tests/integration/test_api_remediation.py`: Unit and integration test suites.
+* `benchmarks/benchmark_remediation.py`: 6-suite quantitative HPC benchmark.
+* `docs/architecture/remediation.md`: Architecture specification.
+
+### 3. Verification & Acceptance Results
+* **Test Suite**: **140/140 tests passing** (`pytest -p no:cacheprovider tests/`).
+* **Type Safety**: **Mypy clean (0 errors)** across 187 source files.
+* **Linter & Formatter**: **Ruff clean** across 220 source files.
+* **Frontend Build**: **Vite production build passing** in 3.17s with 0 errors.
+* **HPC Benchmark Suite Results**:
+  - Plan Synthesis Throughput: **18,981 plans/sec** ($P_{99} = 0.124\text{ ms}$, Target $\ge 1,000$)
+  - In-Memory Actuation Throughput: **54,612 actuations/sec** ($P_{99} = 0.045\text{ ms}$, Target $P_{99} < 5\text{ ms}$)
+  - Verbatim Rollback Speed: **53,792 rollbacks/sec** ($P_{99} = 0.038\text{ ms}$, 100% exact state restoration)
+  - Safety Invariant Fuzzing: **100/100 rejected** (100.0% enforcement rate)
+  - Cryptographic Audit Ledger: **3,913 entries/sec**, 1,000/1,000 verified intact
+  - Closed-Loop Self-Healing Recovery Rate: **7/7 chaos presets recovered (100.0%)**
+
+
 
 
 

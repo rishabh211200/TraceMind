@@ -205,3 +205,22 @@ This document outlines the phased milestone execution plan for TraceMind.
   - Published research benchmark whitepaper (`docs/research/hpc_scalability_report.md`).
 * **Status**: Completed
 
+---
+
+## Milestone 14: Autonomous Closed-Loop Remediation & Policy-Governed Actuation
+* **Objective**: Transform TraceMind from an observational and analytical system into a self-healing operational runtime control plane with deterministic safety invariants, exact-state rollback, multi-protocol actuators, and cryptographic audit ledgers.
+* **Deliverables**:
+  - Domain models (`packages/domain/remediation.py`) for `ActionType`, `ExecutionMode` (`AUTONOMOUS`, `SUPERVISED`, `ADVISORY`), `ActionPlanStatus`, `StateSnapshot`, `RemediationPolicy`, `SafetyCheckReport`, and `RemediationActionPlan`.
+  - Deterministic Safety Invariant Evaluator (`apps/ml/remediation/safety_guards.py`) enforcing blast-radius limits ($\le 30\%$), anti-flapping/cooldown ($300\text{s}$ cooldown, $\le 3$ actuations/hr), causal dependency acyclicity (rejecting routes with active culprits), and target path capacity headroom ($\ge 40\%$).
+  - Policy Engine (`apps/ml/remediation/policy_engine.py`) pre-seeded with 7 canonical self-healing policies and strict mode escalation resolution.
+  - Action Planner (`apps/ml/remediation/planner.py`) synthesizing remediation plans from RCA and Pareto optimizations with deterministic SHA-256 idempotency keys.
+  - Concurrency-safe, atomic multi-protocol actuator plane (`InMemoryRoutingActuator`, dry-run `HttpGatewayActuator`, HMAC-SHA256 `WebhookActuator`).
+  - Cryptographic append-only Audit Ledger (`apps/ml/remediation/audit_ledger.py`) generating tamper-evident SHA-256 hash chains.
+  - Post-Actuation Health Verifier (`apps/ml/remediation/verifier.py`) with automated verbatim exact-state rollback upon degraded telemetry.
+  - Database persistence layer (`remediation_policies`, `remediation_action_plans`, `remediation_audit_ledger` tables & `RemediationRepository`).
+  - 11 RESTful endpoints (`/api/v1/remediations/*`) and 4 AI Analyst self-healing tool handlers (`simulate_remediation`, `actuate_mitigation`, `rollback_mitigation`, `get_remediation_mesh_state`).
+  - Interactive React Frontend Control Center (`RemediationView.tsx`, `PolicyEditorModal.tsx`, `PlanDetailsModal.tsx`, `RemediationActionCard.tsx`).
+  - Quantitative 6-suite benchmark (`benchmarks/benchmark_remediation.py`) validating $18,981\text{ plans/sec}$ synthesis throughput, $54,612\text{ actuations/sec}$ actuation, $53,792\text{ rollbacks/sec}$ rollback, $100\%$ safety invariant rejection rate, $100\%$ audit chain integrity, and $100\%$ closed-loop recovery rate across 7 chaos presets.
+* **Status**: Completed
+
+

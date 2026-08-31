@@ -15,6 +15,7 @@ from apps.api.routes import (
     incidents_router,
     optimizer_router,
     predictions_router,
+    remediation_router,
     root_cause_router,
     services_router,
     simulator_router,
@@ -55,6 +56,10 @@ OPENAPI_TAGS = [
         "description": "Multi-objective Pareto optimal routing, historical path evaluation, and advisory incident diversion recommendations.",
     },
     {
+        "name": "Autonomous Remediation & Self-Healing",
+        "description": "Policy-governed closed-loop remediation, dynamic traffic diversion, circuit breaking, and automated emergency rollback.",
+    },
+    {
         "name": "AI Analyst",
         "description": "Tool-grounded conversational AI assistant for workflow diagnostics, incident briefings, and optimization reasoning.",
     },
@@ -86,7 +91,7 @@ async def lifespan(app: FastAPI):
     """FastAPI application lifecycle management: database init and connection cleanup."""
     logger.info(
         "starting_tracemind_api",
-        version="0.11.0",
+        version="0.14.0",
         environment=settings.environment,
         debug=settings.debug,
     )
@@ -105,7 +110,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="TraceMind API",
     description="AI-Powered Distributed Workflow Intelligence Platform REST API",
-    version="0.11.0",
+    version="0.14.0",
     docs_url="/docs",
     redoc_url="/redoc",
     openapi_url="/openapi.json",
@@ -135,6 +140,7 @@ app.include_router(predictions_router)
 app.include_router(anomalies_router)
 app.include_router(root_cause_router)
 app.include_router(optimizer_router)
+app.include_router(remediation_router)
 app.include_router(analyst_router)
 app.include_router(traces_router)  # Preserved for Milestone 2 client compatibility
 app.include_router(simulator_router)
@@ -176,7 +182,7 @@ async def root_metadata() -> dict[str, Any]:
     """Retrieve top-level API metadata and documentation links."""
     return {
         "service": "TraceMind Distributed Workflow Intelligence API",
-        "version": "0.11.0",
+        "version": "0.14.0",
         "environment": settings.environment,
         "docs": "/docs",
         "openapi": "/openapi.json",
@@ -196,7 +202,7 @@ async def health_check() -> HealthResponse:
     """Retrieve operational status for API and system modules."""
     return HealthResponse(
         status="healthy",
-        version="0.11.0",
+        version="0.14.0",
         environment=settings.environment,
         modules={
             "api": "operational",
@@ -207,6 +213,7 @@ async def health_check() -> HealthResponse:
             "anomaly_detector": "ready",
             "root_cause_engine": "operational",
             "optimizer": "operational",
+            "remediation": "operational",
             "analyst": "operational",
             "observability": "operational",
         },

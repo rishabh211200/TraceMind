@@ -9,6 +9,11 @@ from packages.database.models.base import Base, TimestampMixin
 from packages.database.models.incident import IncidentModel
 from packages.database.models.optimization import OptimizationModel
 from packages.database.models.prediction import PredictionModel
+from packages.database.models.remediation import (
+    RemediationActionPlanModel,
+    RemediationAuditLedgerModel,
+    RemediationPolicyModel,
+)
 from packages.database.models.root_cause import RootCauseModel
 from packages.database.models.service import ServiceModel
 from packages.database.models.trace_event import TraceEventModel
@@ -31,4 +36,7 @@ __all__ = [
     "OptimizationModel",
     "AnalystConversationModel",
     "AnalystMessageModel",
+    "RemediationPolicyModel",
+    "RemediationActionPlanModel",
+    "RemediationAuditLedgerModel",
 ]

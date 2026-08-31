@@ -6,6 +6,7 @@ from apps.api.routes.executions import router as executions_router
 from apps.api.routes.incidents import router as incidents_router
 from apps.api.routes.optimizer import router as optimizer_router
 from apps.api.routes.predictions import router as predictions_router
+from apps.api.routes.remediation import router as remediation_router
 from apps.api.routes.root_cause import router as root_cause_router
 from apps.api.routes.services import router as services_router
 from apps.api.routes.simulator import router as simulator_router
@@ -24,4 +25,5 @@ __all__ = [
     "root_cause_router",
     "optimizer_router",
     "analyst_router",
+    "remediation_router",
 ]

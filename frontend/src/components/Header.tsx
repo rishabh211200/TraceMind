@@ -12,6 +12,7 @@ import {
   SearchCheck,
   Compass,
   Sparkles,
+  ShieldAlert,
 } from 'lucide-react';
 
 export type DashboardTab =
@@ -22,6 +23,7 @@ export type DashboardTab =
   | 'anomalies'
   | 'root_cause'
   | 'optimizer'
+  | 'remediation'
   | 'analyst'
   | 'services'
   | 'simulator';
@@ -45,10 +47,12 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'anomalies', label: 'Anomalies', icon: AlertTriangle },
     { id: 'root_cause', label: 'Root Cause', icon: SearchCheck },
     { id: 'optimizer', label: 'Optimizer', icon: Compass },
+    { id: 'remediation', label: 'Remediation', icon: ShieldAlert },
     { id: 'analyst', label: 'AI Analyst', icon: Sparkles },
     { id: 'services', label: 'Services', icon: Server },
     { id: 'simulator', label: 'Simulator', icon: Flame },
   ];
+
 
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
