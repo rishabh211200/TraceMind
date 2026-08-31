@@ -43,7 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
   apiStatus,
 }) => {
-  const { user, activeTenantId, isAuthenticated } = useAuth();
+  const { activeTenantId, isAuthenticated } = useAuth();
 
   const tabs: { id: DashboardTab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: Activity },

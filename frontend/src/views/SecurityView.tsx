@@ -10,17 +10,13 @@ import {
   Copy,
   CheckCircle,
   AlertTriangle,
-  RefreshCw,
-  Eye,
-  EyeOff,
-  Zap,
 } from 'lucide-react';
 import { authApi, CreateApiKeyPayload, CreateTenantPayload, CreateTenantUserPayload } from '../api/auth';
 import { useAuth } from '../context/AuthContext';
 import { ApiKey, ApiKeyCreatedResponse, Role, Tenant, User } from '../types/security';
 
 export const SecurityView: React.FC = () => {
-  const { user, activeTenantId, hasPermission, hasRole, switchTenant, login, register, isAuthenticated, logout } = useAuth();
+  const { user, activeTenantId, hasRole, switchTenant, login, isAuthenticated, logout } = useAuth();
 
   // Tab selection inside Security View
   const [activeSubTab, setActiveSubTab] = useState<'keys' | 'tenants' | 'users' | 'login'>('keys');
@@ -598,6 +594,11 @@ export const SecurityView: React.FC = () => {
               )}
 
               {/* Tenants Grid */}
+              {tenants.length === 0 && (
+                <div className="py-6 text-center text-slate-500 font-mono text-xs">
+                  {loadingTenants ? 'Loading tenant organizations...' : 'No tenant organizations found.'}
+                </div>
+              )}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
                 {tenants.map((t) => (
                   <div
@@ -757,6 +758,14 @@ export const SecurityView: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60">
+                    {tenantUsers.length === 0 && (
+                      <tr>
+                        <td colSpan={6} className="py-6 text-center text-slate-500">
+                          {loadingUsers ? 'Loading users...' : 'No users provisioned in this tenant.'}
+                        </td>
+
+                      </tr>
+                    )}
                     {tenantUsers.map((u) => (
                       <tr key={u.id} className="hover:bg-slate-800/30 transition">
                         <td className="py-2.5 px-4 font-semibold text-slate-200">{u.full_name}</td>
