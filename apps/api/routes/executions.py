@@ -5,6 +5,9 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+)
 from apps.api.exceptions import EntityNotFoundException
 from apps.api.schemas.common import PaginationMeta
 from apps.api.schemas.execution import (
@@ -16,6 +19,7 @@ from apps.api.schemas.execution import (
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.repositories.workflow_repository import WorkflowRepository
 from packages.database.session import get_db_session
+from packages.domain.security import TenantContext
 
 router = APIRouter(prefix="/api/v1/executions", tags=["Executions & Traces"])
 
@@ -47,6 +51,7 @@ async def list_executions(
     limit: int = Query(50, ge=1, le=1000, description="Maximum records per page"),
     offset: int = Query(0, ge=0, description="Pagination offset index"),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ExecutionListResponse:
     """Retrieve paginated list of workflow executions matching filter criteria."""
     repo = WorkflowRepository(session)
@@ -61,6 +66,7 @@ async def list_executions(
         end_time=end_time,
         limit=limit,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
     total = await repo.count_executions(
         workflow_definition_id=workflow_definition_id,
@@ -71,6 +77,7 @@ async def list_executions(
         max_duration_ms=max_duration_ms,
         start_time=start_time,
         end_time=end_time,
+        tenant_id=ctx.tenant_id,
     )
 
     items = [
@@ -109,10 +116,11 @@ async def list_executions(
 async def get_execution(
     execution_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ExecutionSummaryResponse:
     """Retrieve single execution metadata by unique execution ID."""
     repo = WorkflowRepository(session)
-    execution = await repo.get_execution(execution_id)
+    execution = await repo.get_execution(execution_id, tenant_id=ctx.tenant_id)
     if not execution:
         raise EntityNotFoundException("WorkflowExecution", execution_id)
 
@@ -140,15 +148,16 @@ async def get_execution(
 async def get_execution_events(
     execution_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[TraceEventResponse]:
     """Retrieve all span events for a workflow execution in chronological order."""
     wf_repo = WorkflowRepository(session)
-    execution = await wf_repo.get_execution(execution_id)
+    execution = await wf_repo.get_execution(execution_id, tenant_id=ctx.tenant_id)
     if not execution:
         raise EntityNotFoundException("WorkflowExecution", execution_id)
 
     event_repo = TraceEventRepository(session)
-    events = await event_repo.get_trace_events(execution_id)
+    events = await event_repo.get_trace_events(execution_id, tenant_id=ctx.tenant_id)
     return [
         TraceEventResponse(
             event_id=ev.event_id,
@@ -176,16 +185,18 @@ async def get_execution_events(
 async def get_execution_trace_tree(
     execution_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> TraceTreeNodeResponse:
     """Reconstruct and return the full hierarchical DAG span tree for an execution."""
     wf_repo = WorkflowRepository(session)
-    execution = await wf_repo.get_execution(execution_id)
+    execution = await wf_repo.get_execution(execution_id, tenant_id=ctx.tenant_id)
     if not execution:
         raise EntityNotFoundException("WorkflowExecution", execution_id)
 
     event_repo = TraceEventRepository(session)
-    tree = await event_repo.get_trace_tree(execution_id)
+    tree = await event_repo.get_trace_tree(execution_id, tenant_id=ctx.tenant_id)
     if not tree:
         raise EntityNotFoundException("TraceTree", execution_id)
 
     return TraceTreeNodeResponse(**tree)
+

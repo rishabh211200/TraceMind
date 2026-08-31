@@ -28,6 +28,7 @@ class AnomalyRepository:
         evidence: dict[str, Any] | None = None,
         anomaly_id: str | None = None,
         detected_at: datetime | None = None,
+        tenant_id: str = "tenant_system",
     ) -> AnomalyModel:
         """Create and persist a new anomaly detection record."""
         record_id = anomaly_id or f"anom_{uuid4().hex[:12]}"
@@ -35,6 +36,7 @@ class AnomalyRepository:
 
         anomaly = AnomalyModel(
             id=record_id,
+            tenant_id=tenant_id,
             execution_id=execution_id,
             workflow_definition_id=workflow_definition_id,
             anomaly_type=anomaly_type,
@@ -53,6 +55,7 @@ class AnomalyRepository:
     async def save_anomalies_batch(
         self,
         anomalies_data: list[dict[str, Any]],
+        tenant_id: str = "tenant_system",
     ) -> list[AnomalyModel]:
         """Persist a batch of anomaly records in a single database transaction."""
         models: list[AnomalyModel] = []
@@ -66,6 +69,7 @@ class AnomalyRepository:
 
             model = AnomalyModel(
                 id=rec_id,
+                tenant_id=data.get("tenant_id", tenant_id),
                 execution_id=data["execution_id"],
                 workflow_definition_id=data.get("workflow_definition_id", "default_workflow"),
                 anomaly_type=data["anomaly_type"],
@@ -86,19 +90,25 @@ class AnomalyRepository:
 
         return models
 
-    async def get_anomaly(self, anomaly_id: str) -> AnomalyModel | None:
+    async def get_anomaly(self, anomaly_id: str, tenant_id: str | None = None) -> AnomalyModel | None:
         """Retrieve an anomaly record by its unique ID."""
         stmt = select(AnomalyModel).where(AnomalyModel.id == anomaly_id)
+        if tenant_id:
+            stmt = stmt.where(AnomalyModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
-    async def get_anomalies_by_execution(self, execution_id: str) -> list[AnomalyModel]:
+    async def get_anomalies_by_execution(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> list[AnomalyModel]:
         """Retrieve all detected anomalies for a specific workflow execution run."""
         stmt = (
             select(AnomalyModel)
             .where(AnomalyModel.execution_id == execution_id)
             .order_by(AnomalyModel.score.desc(), AnomalyModel.detected_at.asc())
         )
+        if tenant_id:
+            stmt = stmt.where(AnomalyModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -110,10 +120,15 @@ class AnomalyRepository:
         min_score: float | None = None,
         limit: int = 50,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> tuple[list[AnomalyModel], int]:
         """List anomalies matching multi-column criteria with pagination."""
         stmt = select(AnomalyModel)
         count_stmt = select(func.count(AnomalyModel.id))
+
+        if tenant_id:
+            stmt = stmt.where(AnomalyModel.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(AnomalyModel.tenant_id == tenant_id)
 
         if workflow_definition_id:
             stmt = stmt.where(AnomalyModel.workflow_definition_id == workflow_definition_id)
@@ -145,10 +160,12 @@ class AnomalyRepository:
 
         return items, total
 
-    async def get_anomaly_stats(self) -> dict[str, Any]:
+    async def get_anomaly_stats(self, tenant_id: str | None = None) -> dict[str, Any]:
         """Calculate aggregated anomaly counts by type, severity, and impacted services."""
         # Total count
         total_stmt = select(func.count(AnomalyModel.id))
+        if tenant_id:
+            total_stmt = total_stmt.where(AnomalyModel.tenant_id == tenant_id)
         total_res = await self.session.execute(total_stmt)
         total_anomalies = total_res.scalar() or 0
 
@@ -156,6 +173,8 @@ class AnomalyRepository:
         sev_stmt = select(AnomalyModel.severity, func.count(AnomalyModel.id)).group_by(
             AnomalyModel.severity
         )
+        if tenant_id:
+            sev_stmt = sev_stmt.where(AnomalyModel.tenant_id == tenant_id)
         sev_res = await self.session.execute(sev_stmt)
         by_severity = {row[0]: row[1] for row in sev_res.all()}
 
@@ -163,6 +182,8 @@ class AnomalyRepository:
         type_stmt = select(AnomalyModel.anomaly_type, func.count(AnomalyModel.id)).group_by(
             AnomalyModel.anomaly_type
         )
+        if tenant_id:
+            type_stmt = type_stmt.where(AnomalyModel.tenant_id == tenant_id)
         type_res = await self.session.execute(type_stmt)
         by_type = {row[0]: row[1] for row in type_res.all()}
 
@@ -171,3 +192,4 @@ class AnomalyRepository:
             "by_severity": by_severity,
             "by_type": by_type,
         }
+

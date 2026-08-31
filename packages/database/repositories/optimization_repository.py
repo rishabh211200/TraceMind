@@ -33,6 +33,7 @@ class OptimizationRepository:
         active_incident_culprit: str | None = None,
         optimization_id: str | None = None,
         created_at: datetime | None = None,
+        tenant_id: str = "tenant_system",
     ) -> OptimizationModel:
         """Create and persist a new workflow optimization recommendation."""
         record_id = optimization_id or f"opt_{uuid4().hex[:10]}"
@@ -40,6 +41,7 @@ class OptimizationRepository:
 
         model = OptimizationModel(
             id=record_id,
+            tenant_id=tenant_id,
             workflow_definition_id=workflow_definition_id,
             optimization_type=optimization_type,
             weight_latency=float(weight_latency),
@@ -60,9 +62,11 @@ class OptimizationRepository:
         await self.session.refresh(model)
         return model
 
-    async def get_by_id(self, optimization_id: str) -> OptimizationModel | None:
+    async def get_by_id(self, optimization_id: str, tenant_id: str | None = None) -> OptimizationModel | None:
         """Fetch a specific optimization recommendation by ID."""
         stmt = select(OptimizationModel).where(OptimizationModel.id == optimization_id)
+        if tenant_id:
+            stmt = stmt.where(OptimizationModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalars().first()
 
@@ -72,10 +76,15 @@ class OptimizationRepository:
         optimization_type: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> tuple[list[OptimizationModel], int]:
         """List optimization recommendations with filtering and pagination."""
         stmt = select(OptimizationModel)
         count_stmt = select(func.count(OptimizationModel.id))
+
+        if tenant_id:
+            stmt = stmt.where(OptimizationModel.tenant_id == tenant_id)
+            count_stmt = count_stmt.where(OptimizationModel.tenant_id == tenant_id)
 
         if workflow_definition_id:
             stmt = stmt.where(OptimizationModel.workflow_definition_id == workflow_definition_id)
@@ -94,9 +103,11 @@ class OptimizationRepository:
         items_result = await self.session.execute(stmt)
         return list(items_result.scalars().all()), total
 
-    async def get_stats(self) -> dict[str, Any]:
+    async def get_stats(self, tenant_id: str | None = None) -> dict[str, Any]:
         """Compute aggregate summary statistics for all historical optimizations."""
         total_stmt = select(func.count(OptimizationModel.id))
+        if tenant_id:
+            total_stmt = total_stmt.where(OptimizationModel.tenant_id == tenant_id)
         total_res = await self.session.execute(total_stmt)
         total_count = int(total_res.scalar_one() or 0)
 
@@ -114,7 +125,10 @@ class OptimizationRepository:
         strat_stmt = select(
             OptimizationModel.optimization_type,
             func.count(OptimizationModel.id),
-        ).group_by(OptimizationModel.optimization_type)
+        )
+        if tenant_id:
+            strat_stmt = strat_stmt.where(OptimizationModel.tenant_id == tenant_id)
+        strat_stmt = strat_stmt.group_by(OptimizationModel.optimization_type)
         strat_res = await self.session.execute(strat_stmt)
         strategy_breakdown = {row[0]: row[1] for row in strat_res.all()}
 
@@ -124,13 +138,16 @@ class OptimizationRepository:
             func.avg(OptimizationModel.weight_cost),
             func.avg(OptimizationModel.weight_reliability),
         )
+        if tenant_id:
+            avg_weights_stmt = avg_weights_stmt.where(OptimizationModel.tenant_id == tenant_id)
         avg_weights_res = await self.session.execute(avg_weights_stmt)
         w_lat, w_cost, w_rel = avg_weights_res.one()
 
         # Most recent
-        recent_stmt = (
-            select(OptimizationModel).order_by(desc(OptimizationModel.created_at)).limit(1)
-        )
+        recent_stmt = select(OptimizationModel)
+        if tenant_id:
+            recent_stmt = recent_stmt.where(OptimizationModel.tenant_id == tenant_id)
+        recent_stmt = recent_stmt.order_by(desc(OptimizationModel.created_at)).limit(1)
         recent_res = await self.session.execute(recent_stmt)
         recent_obj = recent_res.scalars().first()
 
@@ -151,3 +168,4 @@ class OptimizationRepository:
                 else None
             ),
         }
+

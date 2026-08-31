@@ -29,10 +29,12 @@ class PredictionRepository:
         model_name: str = "xgboost_workflow_predictor",
         model_version: str = "1.0.0",
         prediction_id: str | None = None,
+        tenant_id: str = "tenant_system",
     ) -> PredictionModel:
         """Create and persist a new workflow prediction record."""
         pred = PredictionModel(
             id=prediction_id or f"pred_{uuid4().hex[:10]}",
+            tenant_id=tenant_id,
             execution_id=execution_id,
             workflow_definition_id=workflow_definition_id,
             step_index=step_index,
@@ -50,19 +52,25 @@ class PredictionRepository:
         await self.session.refresh(pred)
         return pred
 
-    async def get_prediction(self, prediction_id: str) -> PredictionModel | None:
+    async def get_prediction(self, prediction_id: str, tenant_id: str | None = None) -> PredictionModel | None:
         """Fetch a specific prediction by its unique identifier."""
         stmt = select(PredictionModel).where(PredictionModel.id == prediction_id)
+        if tenant_id:
+            stmt = stmt.where(PredictionModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def list_predictions_for_execution(self, execution_id: str) -> list[PredictionModel]:
+    async def list_predictions_for_execution(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> list[PredictionModel]:
         """Fetch all chronological in-flight predictions made for a given execution."""
         stmt = (
             select(PredictionModel)
             .where(PredictionModel.execution_id == execution_id)
             .order_by(PredictionModel.step_index.asc(), PredictionModel.created_at.asc())
         )
+        if tenant_id:
+            stmt = stmt.where(PredictionModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
@@ -72,10 +80,13 @@ class PredictionRepository:
         min_failure_probability: float | None = None,
         limit: int = 50,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> list[PredictionModel]:
         """Query recent predictions with optional risk and workflow filtering."""
         stmt = select(PredictionModel)
 
+        if tenant_id:
+            stmt = stmt.where(PredictionModel.tenant_id == tenant_id)
         if workflow_definition_id:
             stmt = stmt.where(PredictionModel.workflow_definition_id == workflow_definition_id)
         if min_failure_probability is not None:
@@ -89,12 +100,16 @@ class PredictionRepository:
         self,
         workflow_definition_id: str | None = None,
         min_failure_probability: float | None = None,
+        tenant_id: str | None = None,
     ) -> int:
         """Count total predictions matching criteria."""
         stmt = select(func.count(PredictionModel.id))
+        if tenant_id:
+            stmt = stmt.where(PredictionModel.tenant_id == tenant_id)
         if workflow_definition_id:
             stmt = stmt.where(PredictionModel.workflow_definition_id == workflow_definition_id)
         if min_failure_probability is not None:
             stmt = stmt.where(PredictionModel.failure_probability >= min_failure_probability)
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
+

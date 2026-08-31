@@ -19,6 +19,18 @@ from packages.domain.remediation import (
     SafetyCheckReport,
     StateSnapshot,
 )
+from packages.domain.security import (
+    ROLE_PERMISSIONS_MAP,
+    ApiKey,
+    AuthTokens,
+    Permission,
+    Role,
+    SecurityAuditLog,
+    Tenant,
+    TenantContext,
+    TenantQuotas,
+    User,
+)
 from packages.domain.service import ServiceDefinition
 from packages.domain.workflow import (
     ExecutionStatus,
@@ -56,4 +68,15 @@ __all__ = [
     "RemediationPolicy",
     "SafetyCheckReport",
     "RemediationActionPlan",
+    "Role",
+    "Permission",
+    "ROLE_PERMISSIONS_MAP",
+    "Tenant",
+    "User",
+    "ApiKey",
+    "TenantQuotas",
+    "AuthTokens",
+    "TenantContext",
+    "SecurityAuditLog",
 ]
+

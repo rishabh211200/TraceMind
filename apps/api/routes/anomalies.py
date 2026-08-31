@@ -3,6 +3,10 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+    require_permission,
+)
 from apps.api.exceptions import EntityNotFoundException
 from apps.api.schemas.anomaly import (
     AnomalyDetectRequest,
@@ -17,6 +21,7 @@ from apps.ml.anomalies.registry import AnomalyDetectorRegistry
 from packages.database.repositories.anomaly_repository import AnomalyRepository
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.session import get_db_session
+from packages.domain.security import Permission, TenantContext
 
 router = APIRouter(prefix="/api/v1/anomalies", tags=["Anomalies & Outlier Detection"])
 
@@ -29,6 +34,7 @@ router = APIRouter(prefix="/api/v1/anomalies", tags=["Anomalies & Outlier Detect
 async def detect_anomalies(
     req: AnomalyDetectRequest,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> AnomalyDetectResponse:
     """Run composite unsupervised anomaly detectors against trace execution telemetry."""
     raw_events = req.events
@@ -36,7 +42,7 @@ async def detect_anomalies(
     # If no spans passed directly, load from database trace event hypertable
     if not raw_events:
         event_repo = TraceEventRepository(session)
-        db_events = await event_repo.get_trace_events(req.execution_id)
+        db_events = await event_repo.get_trace_events(req.execution_id, tenant_id=ctx.tenant_id)
         raw_events = [e.__dict__ for e in db_events]
 
     # 1. Run detection from singleton registry
@@ -89,6 +95,7 @@ async def detect_anomalies(
         anomalies_to_save = [
             {
                 "id": a.id,
+                "tenant_id": ctx.tenant_id,
                 "execution_id": a.execution_id,
                 "workflow_definition_id": a.workflow_definition_id,
                 "anomaly_type": a.anomaly_type,
@@ -101,7 +108,7 @@ async def detect_anomalies(
             }
             for a in anomaly_responses
         ]
-        await repo.save_anomalies_batch(anomalies_to_save)
+        await repo.save_anomalies_batch(anomalies_to_save, tenant_id=ctx.tenant_id)
 
     return AnomalyDetectResponse(
         execution_id=req.execution_id,
@@ -121,10 +128,11 @@ async def detect_anomalies(
 )
 async def get_anomaly_stats(
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> AnomalyStatsResponse:
     """Return aggregated counts by anomaly severity and anomaly type."""
     repo = AnomalyRepository(session)
-    stats = await repo.get_anomaly_stats()
+    stats = await repo.get_anomaly_stats(tenant_id=ctx.tenant_id)
     return AnomalyStatsResponse(
         total_anomalies=stats["total_anomalies"],
         by_severity=stats["by_severity"],
@@ -140,15 +148,16 @@ async def get_anomaly_stats(
 async def get_execution_anomalies(
     execution_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[AnomalyResponse]:
     """Retrieve all detected anomalies associated with a given execution ID."""
     repo = AnomalyRepository(session)
-    records = await repo.get_anomalies_by_execution(execution_id)
+    records = await repo.get_anomalies_by_execution(execution_id, tenant_id=ctx.tenant_id)
 
     # If not yet recorded in DB, run on-demand detection
     if not records:
         event_repo = TraceEventRepository(session)
-        db_events = await event_repo.get_trace_events(execution_id)
+        db_events = await event_repo.get_trace_events(execution_id, tenant_id=ctx.tenant_id)
         if db_events:
             registry = AnomalyDetectorRegistry()
             detector = registry.get_detector()
@@ -204,6 +213,7 @@ async def list_anomalies(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> PaginatedResponse[AnomalyResponse]:
     """Search and filter historical anomalies with pagination."""
     repo = AnomalyRepository(session)
@@ -215,6 +225,7 @@ async def list_anomalies(
         min_score=min_score,
         limit=page_size,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
 
     items = [
@@ -252,10 +263,11 @@ async def list_anomalies(
 async def get_anomaly(
     anomaly_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> AnomalyResponse:
     """Retrieve details for a single anomaly record."""
     repo = AnomalyRepository(session)
-    rec = await repo.get_anomaly(anomaly_id)
+    rec = await repo.get_anomaly(anomaly_id, tenant_id=ctx.tenant_id)
     if not rec:
         raise EntityNotFoundException("Anomaly", anomaly_id)
 
@@ -277,9 +289,11 @@ async def get_anomaly(
     "/fit",
     response_model=AnomalyFitResponse,
     summary="Fit / Calibrate Anomaly Detectors",
+    dependencies=[Depends(require_permission(Permission.ANOMALIES_FEEDBACK))],
 )
 async def fit_anomaly_detectors(
     req: AnomalyFitRequest,
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> AnomalyFitResponse:
     """Calibrate baseline statistical distributions and DAG transitions using synthetic trace simulation."""
     registry = AnomalyDetectorRegistry()
@@ -295,3 +309,4 @@ async def fit_anomaly_detectors(
         services_fitted=services_fitted,
         transitions_fitted=transitions_count,
     )
+

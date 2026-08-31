@@ -18,6 +18,7 @@ class RemediationPolicyModel(Base):
     __tablename__ = "remediation_policies"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     workflow_definition_id: Mapped[str] = mapped_column(String(128), default="*", index=True)
     incident_category: Mapped[str] = mapped_column(String(128), default="*", index=True)
@@ -38,6 +39,7 @@ class RemediationActionPlanModel(Base):
     __tablename__ = "remediation_action_plans"
 
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
     policy_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     workflow_definition_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
     incident_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
@@ -73,6 +75,7 @@ class RemediationAuditLedgerModel(Base):
     __tablename__ = "remediation_audit_ledger"
 
     entry_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(String(64), default="tenant_system", index=True, nullable=False)
     plan_id: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     actor: Mapped[str] = mapped_column(String(64), nullable=False)
@@ -82,3 +85,4 @@ class RemediationAuditLedgerModel(Base):
     )
     previous_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     entry_hash: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+

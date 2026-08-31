@@ -1042,6 +1042,51 @@ Key capabilities delivered:
   - Cryptographic Audit Ledger: **3,913 entries/sec**, 1,000/1,000 verified intact
   - Closed-Loop Self-Healing Recovery Rate: **7/7 chaos presets recovered (100.0%)**
 
+---
+
+## Milestone 15: Enterprise Multi-Tenancy, Zero-Trust RS256 Security & Governance
+
+* **Status**: Completed
+* **Branch**: `feat/enterprise-security-multitenancy`
+* **Version**: `0.15.0`
+
+### 1. Architectural Highlights
+1. **Strict Multi-Tenant Isolation**:
+   - Indexed `tenant_id` column added across all database tables (`workflows`, `executions`, `traces`, `incidents`, `anomalies`, `predictions`, `root_causes`, `optimizations`, `remediations`, `analyst_conversations`, `api_keys`, `users`).
+   - Repository-level filtering prevents cross-tenant data leakage and IDOR/BOLA attacks.
+2. **Zero-Trust Asymmetric RS256 JWT Token Engine (`packages/common/security/jwt.py`)**:
+   - RS256 asymmetric cryptographic signatures with RSA-2048 keys.
+   - 15-minute access tokens with comprehensive claims (`sub`, `tenant_id`, `roles`, `permissions`, `jti`, `exp`, `iat`).
+   - 7-day refresh tokens with single-use atomic rotation and database-backed revocation blocklist tracking.
+3. **5-Tier Role-Based Access Control (RBAC)**:
+   - `PLATFORM_ADMIN`, `TENANT_ADMIN`, `OPERATOR`, `ANALYST`, `VIEWER` roles.
+   - 24 granular permissions enforced across all REST and streaming endpoints via FastAPI dependency factories (`require_permission`, `require_role`, `require_authenticated`).
+4. **Anti-Spoofing Tenant Protection**:
+   - JWT token is the authoritative source of tenant identity.
+   - Client `X-Tenant-Id` header is rejected with `403 Forbidden` (`TenantMismatchException`) if it does not match the token tenant, unless the caller holds `PLATFORM_ADMIN` privileges.
+5. **Non-Bypassable M14 Remediation Safety Invariants**:
+   - M15 authentication and authorization act strictly as outer gates. Even privileged platform administrators or automated operators cannot actuate plans violating M14 safety invariants (blast radius, rate-of-change, cooldown, canary health).
+6. **Cryptographic Secrets & Envelopes (`packages/common/security/crypto.py`)**:
+   - Passwords hashed with `Argon2id` (v=19, memory=19MB, parallelism=1, 16-byte salt).
+   - Sensitive integrations and tokens encrypted with versioned authenticated AES-256-GCM envelope cipher (`v1:<key_id>:<nonce>:<ciphertext>:<tag>`).
+7. **In-Memory Sliding-Window Rate Limiter (`packages/common/security/rate_limiter.py`)**:
+   - Single-node sliding-window rate limiter per tenant/IP with millisecond timestamp queues.
+8. **Interactive React Frontend Security Center (`frontend/src/views/SecurityView.tsx`)**:
+   - Token lifecycle, tenant switching/provisioning, API key generator & revocation, user administration, and session management.
+
+### 2. Verification & Acceptance Results
+* **Test Suite**: **162/162 tests passing (100% pass rate across M0–M15)** in 11.02s.
+* **Type Safety**: **Mypy clean (0 errors)** across 143 source files.
+* **Linter & Formatter**: **Ruff clean** with all checks passing.
+* **Security Microbenchmark Suite Results (`benchmarks/benchmark_security.py`)**:
+  - AES-256-GCM Encryption Throughput: **290,827 ops/sec** (Latency: 3.44 µs, Target > 5,000)
+  - AES-256-GCM Decryption Throughput: **285,111 ops/sec** (Latency: 3.51 µs, Target > 5,000)
+  - RS256 JWT Token Signing: **2,004 ops/sec** (Latency: 0.499 ms)
+  - RS256 JWT Token Verification: **36,498 ops/sec** (Mean latency: **0.0272 ms** [27.2 µs], P95: **0.0320 ms**, P99: **0.0546 ms**, Target < 2.0 ms)
+  - Sliding-Window Rate Limiter Throughput: **797,857 checks/sec** (Latency: 1.25 µs, Target > 50,000)
+  - Argon2id Password Hashing: **22.39 ms** (Verification: **23.22 ms**)
+
+
 
 
 

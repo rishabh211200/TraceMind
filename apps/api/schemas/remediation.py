@@ -57,6 +57,7 @@ class RemediationPolicyResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     id: str
+    tenant_id: str = "tenant_system"
     name: str
     workflow_definition_id: str
     incident_category: str
@@ -75,8 +76,10 @@ class RemediationPlanResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     id: str
+    tenant_id: str = "tenant_system"
     policy_id: str | None
     workflow_definition_id: str
+
     incident_id: str | None
     trigger_rca_id: str | None
     action_type: ActionType

@@ -15,6 +15,13 @@ from packages.database.models.remediation import (
     RemediationPolicyModel,
 )
 from packages.database.models.root_cause import RootCauseModel
+from packages.database.models.security import (
+    ApiKeyModel,
+    RevokedTokenModel,
+    TenantModel,
+    TenantQuotaModel,
+    UserModel,
+)
 from packages.database.models.service import ServiceModel
 from packages.database.models.trace_event import TraceEventModel
 from packages.database.models.workflow import (
@@ -39,4 +46,10 @@ __all__ = [
     "RemediationPolicyModel",
     "RemediationActionPlanModel",
     "RemediationAuditLedgerModel",
+    "TenantModel",
+    "UserModel",
+    "ApiKeyModel",
+    "RevokedTokenModel",
+    "TenantQuotaModel",
 ]
+

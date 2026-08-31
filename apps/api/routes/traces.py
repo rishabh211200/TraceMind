@@ -7,9 +7,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.api.dependencies.security import (
+    get_tenant_context,
+)
 from packages.database.repositories.trace_event_repository import TraceEventRepository
 from packages.database.repositories.workflow_repository import WorkflowRepository
 from packages.database.session import get_db_session
+from packages.domain.security import TenantContext
 
 router = APIRouter(prefix="/api/v1/traces", tags=["Traces & Executions"])
 
@@ -64,6 +68,7 @@ async def list_traces(
     limit: int = Query(50, ge=1, le=1000),
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[ExecutionSummaryResponse]:
     """Retrieve paginated list of workflow executions matching filter criteria."""
     repo = WorkflowRepository(session)
@@ -75,6 +80,7 @@ async def list_traces(
         end_time=end_time,
         limit=limit,
         offset=offset,
+        tenant_id=ctx.tenant_id,
     )
     return [
         ExecutionSummaryResponse(
@@ -103,10 +109,11 @@ async def list_traces(
 async def get_trace(
     trace_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> ExecutionSummaryResponse:
     """Retrieve execution trace summary by ID."""
     repo = WorkflowRepository(session)
-    execution = await repo.get_execution(trace_id)
+    execution = await repo.get_execution(trace_id, tenant_id=ctx.tenant_id)
     if not execution:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -136,10 +143,11 @@ async def get_trace(
 async def get_trace_events(
     trace_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> list[TraceEventResponse]:
     """Retrieve all span events for a trace ordered chronologically by timestamp."""
     repo = TraceEventRepository(session)
-    events = await repo.get_trace_events(trace_id)
+    events = await repo.get_trace_events(trace_id, tenant_id=ctx.tenant_id)
     if not events:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -172,13 +180,15 @@ async def get_trace_events(
 async def get_trace_tree(
     trace_id: str,
     session: AsyncSession = Depends(get_db_session),
+    ctx: TenantContext = Depends(get_tenant_context),
 ) -> dict[str, Any]:
     """Reconstruct and retrieve the hierarchical span DAG tree for an execution trace."""
     repo = TraceEventRepository(session)
-    tree = await repo.get_trace_tree(trace_id)
+    tree = await repo.get_trace_tree(trace_id, tenant_id=ctx.tenant_id)
     if not tree:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Could not reconstruct tree for trace '{trace_id}'",
         )
     return tree
+

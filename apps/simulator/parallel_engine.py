@@ -141,13 +141,22 @@ class MultiprocessTraceSimulator:
                 total_events_generated += event_count
                 chunk_durations_ms.append(duration * 1000.0)
         else:
-            with concurrent.futures.ProcessPoolExecutor(max_workers=active_workers) as executor:
-                futures = [executor.submit(_simulate_chunk_worker, *task) for task in chunk_tasks]
-                for fut in concurrent.futures.as_completed(futures):
-                    exec_count, event_count, duration = fut.result()
+            try:
+                with concurrent.futures.ProcessPoolExecutor(max_workers=active_workers) as executor:
+                    futures = [executor.submit(_simulate_chunk_worker, *task) for task in chunk_tasks]
+                    for fut in concurrent.futures.as_completed(futures):
+                        exec_count, event_count, duration = fut.result()
+                        total_execs_generated += exec_count
+                        total_events_generated += event_count
+                        chunk_durations_ms.append(duration * 1000.0)
+            except (PermissionError, OSError):
+                # Fallback for restricted OS environments where multiprocessing IPC named pipes are disallowed
+                for task in chunk_tasks:
+                    exec_count, event_count, duration = _simulate_chunk_worker(*task)
                     total_execs_generated += exec_count
                     total_events_generated += event_count
                     chunk_durations_ms.append(duration * 1000.0)
+
 
         profile_res = profiler.stop()
 

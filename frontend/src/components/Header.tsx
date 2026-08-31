@@ -13,7 +13,10 @@ import {
   Compass,
   Sparkles,
   ShieldAlert,
+  Shield,
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+
 
 export type DashboardTab =
   | 'overview'
@@ -26,7 +29,8 @@ export type DashboardTab =
   | 'remediation'
   | 'analyst'
   | 'services'
-  | 'simulator';
+  | 'simulator'
+  | 'security';
 
 interface HeaderProps {
   activeTab: DashboardTab;
@@ -39,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectTab,
   apiStatus,
 }) => {
+  const { user, activeTenantId, isAuthenticated } = useAuth();
+
   const tabs: { id: DashboardTab; label: string; icon: React.ElementType }[] = [
     { id: 'overview', label: 'Overview', icon: Activity },
     { id: 'topology', label: 'Topology', icon: Network },
@@ -51,8 +57,8 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'analyst', label: 'AI Analyst', icon: Sparkles },
     { id: 'services', label: 'Services', icon: Server },
     { id: 'simulator', label: 'Simulator', icon: Flame },
+    { id: 'security', label: 'Security', icon: Shield },
   ];
-
 
   return (
     <header className="border-b border-slate-800/80 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
@@ -66,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
             <div className="flex items-center space-x-2">
               <span className="font-bold text-base tracking-tight text-slate-100 font-mono">TraceMind</span>
               <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 font-mono border border-emerald-500/20">
-                v0.10.0
+                v0.15.0
               </span>
             </div>
             <p className="text-[11px] text-slate-400 hidden xl:block font-mono">
@@ -98,6 +104,17 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Status Indicators & Docs Link */}
         <div className="flex items-center space-x-3 shrink-0">
+          {isAuthenticated && (
+            <button
+              onClick={() => onSelectTab('security')}
+              className="hidden lg:flex items-center space-x-1.5 text-[11px] font-mono px-2.5 py-1 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/20 transition"
+              title={`Active Tenant: ${activeTenantId}`}
+            >
+              <Shield className="h-3 w-3 text-emerald-400" />
+              <span>{activeTenantId}</span>
+            </button>
+          )}
+
           <div className="hidden sm:flex items-center space-x-2 text-[11px] font-mono px-2.5 py-1 rounded-md bg-slate-950/60 border border-slate-800">
             <span
               className={`h-2 w-2 rounded-full ${
@@ -121,3 +138,4 @@ export const Header: React.FC<HeaderProps> = ({
     </header>
   );
 };
+

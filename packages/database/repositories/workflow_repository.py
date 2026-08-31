@@ -20,23 +20,31 @@ class WorkflowRepository:
 
     # --- Workflow Definitions ---
 
-    async def get_definition(self, definition_id: str) -> WorkflowDefinitionModel | None:
+    async def get_definition(
+        self, definition_id: str, tenant_id: str | None = None
+    ) -> WorkflowDefinitionModel | None:
         """Fetch workflow definition by ID."""
         stmt = select(WorkflowDefinitionModel).where(WorkflowDefinitionModel.id == definition_id)
+        if tenant_id:
+            stmt = stmt.where(WorkflowDefinitionModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def upsert_definition(
-        self, data: dict[str, Any] | WorkflowDefinitionModel
+        self, data: dict[str, Any] | WorkflowDefinitionModel, tenant_id: str = "tenant_system"
     ) -> WorkflowDefinitionModel:
         """Insert or update workflow definition."""
         if isinstance(data, WorkflowDefinitionModel):
+            if not getattr(data, "tenant_id", None):
+                data.tenant_id = tenant_id
             definition = await self.session.merge(data)
             await self.session.commit()
             return definition
 
+        if "tenant_id" not in data:
+            data["tenant_id"] = tenant_id
         def_id = data["id"]
-        existing = await self.get_definition(def_id)
+        existing = await self.get_definition(def_id, tenant_id=data["tenant_id"])
         if existing:
             for k, v in data.items():
                 setattr(existing, k, v)
@@ -50,18 +58,22 @@ class WorkflowRepository:
             await self.session.refresh(new_def)
             return new_def
 
-    async def list_definitions(self) -> list[WorkflowDefinitionModel]:
+    async def list_definitions(self, tenant_id: str | None = None) -> list[WorkflowDefinitionModel]:
         """List all registered workflow definitions."""
         stmt = select(WorkflowDefinitionModel).order_by(WorkflowDefinitionModel.name.asc())
+        if tenant_id:
+            stmt = stmt.where(WorkflowDefinitionModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return list(result.scalars().all())
 
-    async def delete_definition(self, definition_id: str) -> bool:
+    async def delete_definition(self, definition_id: str, tenant_id: str | None = None) -> bool:
         """Safely delete workflow definition if no executions exist."""
         # Check if executions reference this definition
         count_stmt = select(func.count(WorkflowExecutionModel.id)).where(
             WorkflowExecutionModel.workflow_definition_id == definition_id
         )
+        if tenant_id:
+            count_stmt = count_stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
         count = int((await self.session.execute(count_stmt)).scalar_one() or 0)
         if count > 0:
             from apps.api.exceptions import ConflictException
@@ -70,7 +82,7 @@ class WorkflowRepository:
                 f"Cannot delete workflow definition '{definition_id}' because {count} execution records are associated with it."
             )
 
-        existing = await self.get_definition(definition_id)
+        existing = await self.get_definition(definition_id, tenant_id=tenant_id)
         if not existing:
             return False
 
@@ -83,6 +95,7 @@ class WorkflowRepository:
         definition_id: str,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        tenant_id: str | None = None,
     ) -> dict[str, Any]:
         """Compute aggregate execution statistics for a workflow definition."""
         from sqlalchemy import case
@@ -106,6 +119,8 @@ class WorkflowRepository:
             func.max(WorkflowExecutionModel.duration_ms).label("max_duration"),
         ).where(WorkflowExecutionModel.workflow_definition_id == definition_id)
 
+        if tenant_id:
+            stmt = stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
         if start_time:
             stmt = stmt.where(WorkflowExecutionModel.started_at >= start_time)
         if end_time:
@@ -125,6 +140,8 @@ class WorkflowRepository:
         dur_stmt = select(WorkflowExecutionModel.duration_ms).where(
             WorkflowExecutionModel.workflow_definition_id == definition_id
         )
+        if tenant_id:
+            dur_stmt = dur_stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
         if start_time:
             dur_stmt = dur_stmt.where(WorkflowExecutionModel.started_at >= start_time)
         if end_time:
@@ -160,32 +177,43 @@ class WorkflowRepository:
 
     # --- Workflow Executions ---
 
-    async def get_execution(self, execution_id: str) -> WorkflowExecutionModel | None:
+    async def get_execution(
+        self, execution_id: str, tenant_id: str | None = None
+    ) -> WorkflowExecutionModel | None:
         """Fetch workflow execution trace by ID."""
         stmt = select(WorkflowExecutionModel).where(WorkflowExecutionModel.id == execution_id)
+        if tenant_id:
+            stmt = stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create_execution(
-        self, data: dict[str, Any] | WorkflowExecutionModel
+        self, data: dict[str, Any] | WorkflowExecutionModel, tenant_id: str = "tenant_system"
     ) -> WorkflowExecutionModel:
         """Persist a single workflow execution record."""
         if isinstance(data, WorkflowExecutionModel):
+            if not getattr(data, "tenant_id", None):
+                data.tenant_id = tenant_id
             self.session.add(data)
             await self.session.commit()
             await self.session.refresh(data)
             return data
         else:
+            if "tenant_id" not in data:
+                data["tenant_id"] = tenant_id
             execution = WorkflowExecutionModel(**data)
             self.session.add(execution)
             await self.session.commit()
             await self.session.refresh(execution)
             return execution
 
-    async def bulk_create_executions(self, records: list[dict[str, Any]]) -> int:
+    async def bulk_create_executions(self, records: list[dict[str, Any]], tenant_id: str = "tenant_system") -> int:
         """Bulk insert executions ignoring existing IDs for idempotency."""
         if not records:
             return 0
+        for r in records:
+            if "tenant_id" not in r:
+                r["tenant_id"] = tenant_id
         objects = [WorkflowExecutionModel(**r) for r in records]
         for obj in objects:
             await self.session.merge(obj)
@@ -204,10 +232,13 @@ class WorkflowRepository:
         end_time: datetime | None = None,
         limit: int = 100,
         offset: int = 0,
+        tenant_id: str | None = None,
     ) -> list[WorkflowExecutionModel]:
         """List workflow executions matching filters with pagination."""
         stmt = select(WorkflowExecutionModel).order_by(WorkflowExecutionModel.started_at.desc())
 
+        if tenant_id:
+            stmt = stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
         if workflow_definition_id:
             stmt = stmt.where(
                 WorkflowExecutionModel.workflow_definition_id == workflow_definition_id
@@ -241,9 +272,12 @@ class WorkflowRepository:
         max_duration_ms: float | None = None,
         start_time: datetime | None = None,
         end_time: datetime | None = None,
+        tenant_id: str | None = None,
     ) -> int:
         """Count workflow executions matching filters."""
         stmt = select(func.count(WorkflowExecutionModel.id))
+        if tenant_id:
+            stmt = stmt.where(WorkflowExecutionModel.tenant_id == tenant_id)
         if workflow_definition_id:
             stmt = stmt.where(
                 WorkflowExecutionModel.workflow_definition_id == workflow_definition_id
@@ -264,3 +298,4 @@ class WorkflowRepository:
             stmt = stmt.where(WorkflowExecutionModel.started_at <= end_time)
         result = await self.session.execute(stmt)
         return int(result.scalar_one() or 0)
+
