@@ -47,9 +47,10 @@ When something goes wrong — an order spins endlessly, fails at checkout, or ti
                                                │
                                                ▼
                              ┌───────────────────────────────────┐
-                             │       FastAPI Gateway (v0.8.0)    │
+                             │       FastAPI Gateway (v0.14.0)   │
                              │    (Async REST / RFC 7807)        │
                              └─────────────────┬─────────────────┘
+
                                                │
                ┌───────────────────────────────┼───────────────────────────────┐
                │                               │                               │
@@ -261,6 +262,7 @@ See [docs/research/hpc_scalability_report.md](docs/research/hpc_scalability_repo
 | **Milestone 11** | OpenTelemetry tracing, Prometheus exporter, Grafana dashboards | ✅ **Completed** |
 | **Milestone 12** | Multi-stage Docker containers, Kubernetes manifests, CI/CD & smoke tests | ✅ **Completed** |
 | **Milestone 13** | Large-scale HPC performance benchmarking (1M+ traces) & research report | ✅ **Completed** |
+| **Milestone 14** | Autonomous closed-loop remediation, policy engine & verbatim rollback | ✅ **Completed** |
 
 See [docs/roadmap.md](docs/roadmap.md) and [docs/project-history.md](docs/project-history.md) for full architectural documentation and historical audit records.
 
@@ -268,4 +270,5 @@ See [docs/roadmap.md](docs/roadmap.md) and [docs/project-history.md](docs/projec
 
 ## 10. License
 
-This project is licensed under the terms of the [MIT License](LICENSE).
+This project is licensed under the terms of the [MIT License](LICENSE).
+
