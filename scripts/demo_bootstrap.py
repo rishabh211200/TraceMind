@@ -175,6 +175,7 @@ async def seed_security_and_users(session) -> None:
             last_login_at=now,
         )
         session.add(admin_user)
+        await session.flush()
 
     # 3. Viewer User (Public Read-Only Exploration)
     viewer_email = "viewer@tracemind.io"
@@ -198,6 +199,7 @@ async def seed_security_and_users(session) -> None:
             last_login_at=now,
         )
         session.add(viewer_user)
+        await session.flush()
 
     # 4. Fixed Demo API Key for Programmatic Testing (tm_live_demo_0123456789abcdef...)
     key_prefix = "tm_demo"
