@@ -46,6 +46,9 @@ COPY --chown=tracemind:tracemind migrations /app/migrations
 COPY --chown=tracemind:tracemind scripts /app/scripts
 COPY --chown=tracemind:tracemind alembic.ini pyproject.toml README.md /app/
 
+# Create data directory and ensure /app ownership
+RUN mkdir -p /app/data && chown -R tracemind:tracemind /app
+
 # Environment Variables
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

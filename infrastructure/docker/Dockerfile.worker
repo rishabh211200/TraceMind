@@ -28,6 +28,9 @@ COPY --chown=tracemind:tracemind apps /app/apps
 COPY --chown=tracemind:tracemind packages /app/packages
 COPY --chown=tracemind:tracemind pyproject.toml README.md /app/
 
+# Create data directory and ensure /app ownership
+RUN mkdir -p /app/data && chown -R tracemind:tracemind /app
+
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/app \
