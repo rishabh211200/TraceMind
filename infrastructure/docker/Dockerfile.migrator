@@ -31,4 +31,4 @@ ENV PYTHONUNBUFFERED=1 \
 
 USER tracemind:tracemind
 
-CMD ["alembic", "upgrade", "head"]
+CMD ["python", "-m", "alembic", "upgrade", "head"]
