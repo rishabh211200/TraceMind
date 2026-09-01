@@ -1,5 +1,4 @@
-"""Unit tests for Milestone 15: Argon2id, AES-256-GCM Cipher, RS256 JWT Manager, and Rate Limiter."""
-
+import base64
 from datetime import timedelta
 
 import pytest
@@ -57,8 +56,10 @@ class TestAES256GCMCipher:
         cipher = AES256GCMCipher()
         envelope = cipher.encrypt("secret_payload")
         parts = envelope.split(":")
-        # Corrupt ciphertext byte
-        corrupted_b64 = "A" + parts[3][1:]
+        # Corrupt ciphertext byte deterministically via bit-flip
+        raw_ct = bytearray(base64.b64decode(parts[3]))
+        raw_ct[0] ^= 0xFF
+        corrupted_b64 = base64.b64encode(raw_ct).decode("ascii")
         corrupted_envelope = f"{parts[0]}:{parts[1]}:{parts[2]}:{corrupted_b64}:{parts[4]}"
 
         with pytest.raises(CryptoTamperException):
@@ -68,8 +69,10 @@ class TestAES256GCMCipher:
         cipher = AES256GCMCipher()
         envelope = cipher.encrypt("secret_payload")
         parts = envelope.split(":")
-        # Corrupt auth tag byte
-        corrupted_tag = "B" + parts[4][1:]
+        # Corrupt auth tag byte deterministically via bit-flip
+        raw_tag = bytearray(base64.b64decode(parts[4]))
+        raw_tag[0] ^= 0xFF
+        corrupted_tag = base64.b64encode(raw_tag).decode("ascii")
         corrupted_envelope = f"{parts[0]}:{parts[1]}:{parts[2]}:{parts[3]}:{corrupted_tag}"
 
         with pytest.raises(CryptoTamperException):
