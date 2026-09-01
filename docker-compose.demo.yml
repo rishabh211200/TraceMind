@@ -94,6 +94,8 @@ services:
       REMEDIATION_ACTUATOR_TYPE: in_memory
     expose:
       - "8000"
+    volumes:
+      - ./scripts:/app/scripts:ro
     depends_on:
       postgres:
         condition: service_healthy

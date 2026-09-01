@@ -43,6 +43,7 @@ COPY --from=builder /bin/uv /bin/uv
 COPY --chown=tracemind:tracemind apps /app/apps
 COPY --chown=tracemind:tracemind packages /app/packages
 COPY --chown=tracemind:tracemind migrations /app/migrations
+COPY --chown=tracemind:tracemind scripts /app/scripts
 COPY --chown=tracemind:tracemind alembic.ini pyproject.toml README.md /app/
 
 # Environment Variables
