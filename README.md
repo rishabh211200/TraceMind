@@ -240,14 +240,14 @@ TraceMind incorporates enterprise-grade multi-tenancy and Zero-Trust cryptograph
 
 ```text
                         ┌──────────────────────────────────────────────┐
-                        │   Inbound HTTP / WebSocket Request          │
+                        │   Inbound HTTP / WebSocket Request           │
                         │   (Authorization: Bearer <RS256 JWT> / Key)  │
                         └──────────────────────┬───────────────────────┘
                                                 │
                                                 ▼
                         ┌──────────────────────────────────────────────┐
                         │     Zero-Trust Security Gateway / RBAC       │
-                        │   - Asymmetric RS256 Signature Verification   │
+                        │   - Asymmetric RS256 Signature Verification  │
                         │   - Authoritative JWT Tenant Extraction      │
                         │   - X-Tenant-Id Anti-Spoofing Defense        │
                         │   - Sliding-Window Rate Limiting (797k ops/s)│
