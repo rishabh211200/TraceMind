@@ -35,11 +35,7 @@ ENV/
 env.bak/
 venv.bak/
 
-# Environment Variables
-.env
-.env.local
-.env.*.local
-!.env.example
+
 
 # Testing & Coverage
 htmlcov/
@@ -77,14 +73,7 @@ yarn-error.log*
 pnpm-debug.log*
 .eslintcache
 
-# ML & Experiments / Datasets
-experiments/artifacts/
-experiments/runs/
-mlruns/
-*.parquet
-*.duckdb
-*.sqlite
-*.sqlite3
+
 data/
 datasets/
 models/*.onnx

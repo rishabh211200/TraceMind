@@ -50,7 +50,7 @@ TraceMind/
 * **Static Analysis & Linting**: Ruff for formatting and linting (E, F, B, I, C, UP rules) and Mypy for static type checking across `packages/`, `apps/`, and `tests/`.
 * **Test Framework**: Pytest with `pytest-asyncio` and `pytest-cov`.
 * **CI/CD Pipeline**: GitHub Actions (`.github/workflows/ci.yml`) testing Python 3.12 lint, type checking, test coverage, and Frontend Vite production build on every push and pull request.
-* **Architecture Decision Record**: [ADR-001: Project Foundation and Architectural Standards](file:///c:/Users/Rishabh.Gupta/Personal_Projects/TraceMind/docs/adr/ADR-001-project-foundation.md).
+
 
 ---
 
@@ -123,7 +123,7 @@ During the post-implementation architecture audit, the domain model was audited 
 
 * **Status**: Completed
 * **Branch**: `feat/persistence`
-* **Architecture Specification**: [`docs/architecture/persistence.md`](file:///c:/Users/Rishabh.Gupta/Personal_Projects/TraceMind/docs/architecture/persistence.md)
+
 
 ### 1. Purpose & Objectives
 Milestone 2 bridges synthetic trace generation with relational storage and analytical time-series querying. It introduces a high-performance persistence engine capable of ingesting high-volume TraceSim telemetry (`executions.parquet`, `events.parquet`, `incidents.parquet`), storing trace spans in a **TimescaleDB hypertable**, performing database-side latency percentiles, reconstructing trace DAG trees in linear time, and exposing query endpoints via FastAPI.
