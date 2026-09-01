@@ -26,6 +26,6 @@
       }
     }
   },
-  "postCreateCommand": "docker compose -f docker-compose.demo.yml --env-file .env.demo up --build -d && docker compose -f docker-compose.demo.yml exec -T api python scripts/demo_bootstrap.py",
+  "postCreateCommand": "chmod +x scripts/*.sh && bash scripts/launch_demo.sh",
   "remoteUser": "vscode"
 }
