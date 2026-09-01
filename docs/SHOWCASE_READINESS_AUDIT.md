@@ -126,11 +126,11 @@ A repository-wide audit was conducted across all files, commits, configurations,
 ### 5.1 The 60-Second Visitor Journey
 
 ```mermaid
-graph LR
-    A["1. Clone Repo<br/>(GitHub)"] --> B["2. Docker Compose Up<br/>(1 Command)"]
-    B --> C["3. Bootstrap Data<br/>(2.2s Execution)"]
-    C --> D["4. Open Dashboard<br/>(http://localhost)"]
-    D --> E["5. Explore Scenarios<br/>(RCA, 3D Pareto, Remediation)"]
+flowchart TD
+    A["1. Clone Repo (GitHub)"] --> B["2. Docker Compose Up (1 Command)"]
+    B --> C["3. Bootstrap Data (2.2s Execution)"]
+    C --> D["4. Open Dashboard (http://localhost)"]
+    D --> E["5. Explore Scenarios (RCA, 3D Pareto, Remediation)"]
 ```
 
 ### 5.2 Friction & Usability Assessment
