@@ -1,84 +1,99 @@
 # TraceMind
 
-**AI-Powered Distributed Workflow Intelligence & Root Cause Reasoning Platform**
+**AI-Powered Distributed Workflow Intelligence, Root Cause Reasoning & Autonomous Remediation Platform**
 
 [![CI Pipeline](https://github.com/rishabh211200/TraceMind/actions/workflows/ci.yml/badge.svg)](https://github.com/rishabh211200/TraceMind/actions/workflows/ci.yml)
+[![Tests: 162 Passing](https://img.shields.io/badge/tests-162%20passed-success.svg)](tests/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120/)
+[![TypeScript 5](https://img.shields.io/badge/typescript-5.x-blue.svg)](frontend/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-emerald.svg)](LICENSE)
 [![Code Style: Ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
-[![Type Checked: Mypy](https://img.shields.io/badge/type%20checked-mypy-blue.svg)](http://mypy-lang.org/)
+[![Type Checked: Mypy Strict](https://img.shields.io/badge/type%20checked-mypy%20strict-blue.svg)](http://mypy-lang.org/)
 
 ---
 
-## 🌟 What is TraceMind? (The Plain-English Explanation)
-
-### 💡 The Problem: Modern Software is a Complex Digital Chain
-When you click **"Place Order"** on an online shopping app or transfer money in a banking app, your single click triggers a chain reaction across dozens of invisible background services:
-1. An **Authentication Service** verifies who you are.
-2. A **Customer Service** fetches your profile and shipping address.
-3. An **Inventory Service** checks product stock against a database.
-4. A **Pricing Service** computes discounts and taxes.
-5. A **Payment Gateway** talks to external banking networks to charge your card.
-6. A **Notification Service** sends you an email receipt.
-
-In modern enterprise architectures (called **microservices**), these steps happen across hundreds of independent servers in milliseconds. 
-
-When something goes wrong — an order spins endlessly, fails at checkout, or times out — finding out **why** it failed is notoriously difficult. Was it a slow database? A network lag spike? An overloaded payment server? A runaway retry loop? Engineers typically spend hours digging through gigabytes of raw logs across multiple systems.
+> 🚀 **Quick Interactive Demo (Zero Cloud Cost & Under 60 Seconds)**  
+> Experience the complete TraceMind platform (M0–M15) locally or in GitHub Codespaces without any paid cloud dependencies or external API keys:  
+> ```bash
+> # 1. Start the single-port demo stack (Port 80 only)
+> docker compose -f docker-compose.demo.yml --env-file .env.demo up -d --build
+> 
+> # 2. Seed deterministic chaos telemetry, trained ML models & 4 showcase scenarios
+> docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap.py
+> 
+> # 3. Open dashboard at http://localhost (Admin: admin@tracemind.io / TraceMind#Admin2026!)
+> ```
+> * **Zero Outbound AI Calls**: Uses in-process `MockLLMClient` with deterministic regex/keyword tool resolution.  
+> * **Zero External Actuation**: Uses `InMemoryRoutingActuator` with thread-safe state snapshots.  
+> * Full step-by-step walkthrough & scenario storyboards: **[`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md)**
 
 ---
 
-### 🚀 The Solution: TraceMind acts as an Intelligent "MRI Scanner" for Software
-**TraceMind** is an intelligent diagnostic and machine learning platform that monitors distributed software workflows in real time:
+## 1. What is TraceMind? (The Plain-English Overview)
 
-* ⏱️ **Predicts Failures Before They Happen**: As a transaction moves through its steps, TraceMind’s AI models predict whether the workflow will fail or suffer extreme slowdowns *while it is still running*, explaining exactly which step caused the risk.
-* 🔍 **Detects Subtle Anomalies**: It automatically catches hidden red flags — unusual latency spikes, statistical execution outliers, unexpected step sequences, and cascading retry storms.
-* 🎯 **Pinpoints the Exact Root Cause**: TraceMind constructs a visual causal map of the incident and pinpoints the exact culprit (e.g. *"Inventory Database IOPS saturation slowed down the inventory service, which timed out the payment processor"*), ranking alternative possibilities with calibrated confidence scores.
-* 🧪 **Simulates Stress & Chaos Scenarios**: TraceMind contains a high-performance simulation engine that can generate realistic distributed workloads and inject controlled chaos scenarios (traffic surges, network packet delays, database crashes) to benchmark reliability.
+### 💡 The Problem: Distributed Microservices are Fragile Digital Chains
+When you click **"Place Order"** in a modern e-commerce application or transfer funds in a banking app, your single click triggers an invisible chain reaction across dozens of independent microservices:
+1. **Authentication Service** verifies your credentials and decodes your token.
+2. **Customer Service** fetches your profile and shipping address.
+3. **Inventory Service** checks product stock against an operational database.
+4. **Pricing Service** computes discounts, coupons, and dynamic taxes.
+5. **Payment Gateway** contacts external banking networks to charge your card.
+6. **Notification Service** publishes an order confirmation receipt.
+
+In modern enterprise architectures, these steps execute across hundreds of distributed containers in milliseconds. 
+
+When a failure occurs — an order spins endlessly, checkout times out with HTTP 504, or inventory double-deducts — identifying the **true root cause** is notoriously difficult. Was it database IOPS saturation? A downstream transit lag spike? An overloaded payment gateway? A runaway retry storm? Site Reliability Engineers (SREs) routinely spend hours correlating gigabytes of fragmented logs across disjointed observability dashboards.
+
+---
+
+### 🚀 The Solution: TraceMind acts as an Intelligent "MRI Scanner" for Software Workflows
+**TraceMind** is an end-to-end, multi-tenant distributed workflow intelligence platform that monitors, diagnoses, optimizes, and autonomously remediates distributed transaction pipelines:
+
+* ⏱️ **Predicts In-Flight Failures**: As a transaction traverses its DAG nodes, supervised XGBoost models predict failure probabilities and latency overruns *while the workflow is still in flight*, explaining exact risk factors via **TreeSHAP** feature attribution waterfalls.
+* 🔍 **Multi-Tier Anomaly Detection**: Combines online exponential moving averages (EWMA), statistical IQR/Z-scores, and unsupervised Isolation Forests to flag subtle latency deviations and cascading retry loops.
+* 🎯 **Causal Graph Root Cause Analysis (RCA)**: Constructs a causal dependency DAG of the incident, traces error and latency propagation backwards to the root culprit (e.g. *"Inventory DB saturation delayed inventory-service, triggering payment gateway timeouts"*), and ranks competing hypotheses with calibrated statistical confidence.
+* 📈 **3D Pareto Path Optimization**: Automatically searches execution paths across the multi-objective Pareto frontier (**Latency vs. Cost vs. Reliability**) to discover optimal routing detours.
+* 🛡️ **Autonomous Closed-Loop Remediation**: Synthesizes and executes safe mitigation action plans (concurrency throttling, traffic diversion, circuit breaking) governed by deterministic safety invariant bounds and logged into a **cryptographic SHA-256 Merkle audit ledger**.
+* 🧪 **High-Throughput Discrete-Event Simulation**: Includes a built-in simulation engine (**TraceSim**) capable of generating millions of synthetic traces and injecting 7 realistic chaos failure scenarios for benchmark evaluation.
 
 ---
 
 ## 2. High-Level System Architecture
 
 ```text
-                             ┌───────────────────────────────────┐
-                             │    Interactive React Dashboard    │
-                             │  (Topology, Predictions, RCA UI)  │
-                             └─────────────────┬─────────────────┘
-                                               │
-                                               ▼
-                             ┌───────────────────────────────────┐
-                             │       FastAPI Gateway (v0.14.0)   │
-                             │    (Async REST / RFC 7807)        │
-                             └─────────────────┬─────────────────┘
-
-                                               │
-               ┌───────────────────────────────┼───────────────────────────────┐
-               │                               │                               │
-               ▼                               ▼                               ▼
-    ┌─────────────────────┐         ┌─────────────────────┐         ┌─────────────────────┐
-    │  Telemetry & Spans  │         │  ML & Intelligence  │         │  Root Cause Engine  │
-    │  (TimescaleDB / PG) │         │  (XGBoost / TreeSHAP│         │  (Causal DAG / DFS  │
-    │  (Tree Aggregation) │         │   Isolation Forest) │         │   Pattern Matcher)  │
-    └─────────────────────┘         └─────────────────────┘         └─────────────────────┘
-               │                               │                               │
-               └───────────────────────────────┼───────────────────────────────┘
-                                               │
-                                               ▼
-                             ┌───────────────────────────────────┐
-                             │     Apache Kafka Streaming Layer  │
-                             │     (25k+ events/sec throughput)  │
-                             └─────────────────┬─────────────────┘
-                                               │
-                                               ▼
-                             ┌───────────────────────────────────┐
-                             │       TraceSim Simulation Engine  │
-                             │   (Discrete-Event Chaos Generator)│
-                             └───────────────────────────────────┘
+ ┌─────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │                                  TRACEMIND END-TO-END DATAFLOW                                          │
+ ├─────────────────────────────────────────────────────────────────────────────────────────────────────────┤
+ │                                                                                                         │
+ │  1. WORKFLOW TELEMETRY          2. STREAMING INGESTION         3. HYBRID PERSISTENCE                    │
+ │  ┌───────────────────────┐      ┌─────────────────────────┐    ┌───────────────────────────────────┐    │
+ │  │ 7 Microservices Mesh  │ ───► │ Apache Kafka (KRaft)    │ ──►│ PostgreSQL / TimescaleDB          │    │
+ │  │ Discrete TraceSim /   │      │ Micro-Batch Consumer    │    │ Partitioned Hypertables           │    │
+ │  │ OpenTelemetry Traces  │      │ (>25k events/sec)       │    │ DuckDB Analytical OLAP            │    │
+ │  └───────────────────────┘      └─────────────────────────┘    └───────────────────────────────────┘    │
+ │                                                                                  │                      │
+ │                                                                                  ▼                      │
+ │  6. CLOSED-LOOP ACTUATION       5. 3D PARETO OPTIMIZATION      4. ML DIAGNOSTICS & ROOT CAUSE           │
+ │  ┌───────────────────────┐      ┌─────────────────────────┐    ┌───────────────────────────────────┐    │
+ │  │ Non-Bypassable Safety │ ◄─── │ Multi-Objective Search  │ ◄──│ XGBoost Failure Predictor         │    │
+ │  │ Invariant Evaluator   │      │ Latency vs Cost vs SLA  │    │ TreeSHAP Feature Attributions     │    │
+ │  │ In-Memory / Webhook   │      │ Optimal Routing Detours │    │ Composite Anomaly Detection       │    │
+ │  │ SHA-256 Audit Ledger  │      │ Transparent Cost Model  │    │ Causal Graph RCA Engine           │    │
+ │  └───────────────────────┘      └─────────────────────────┘    └───────────────────────────────────┘    │
+ │              │                                                                                          │
+ │              ▼                                                                                          │
+ │  7. OPERATIONAL DASHBOARD & INTERACTIVE REASONING                                                       │
+ │  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐      │
+ │  │ React 18 / Vite Real-Time Dashboard (Topologies, Causal Trees, Pareto Curves, Audit Logs)   │      │
+ │  │ SSE Streaming AI ReAct Analyst (MockLLM / GPT-4o Support) + OpenTelemetry & Prometheus /   │      │
+ │  │ Grafana Observability Suite                                                                 │      │
+ │  └─────────────────────────────────────────────────────────────────────────────────────────────┘      │
+ └─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Product Modules & Completed Capabilities
+## 3. Product Modules & Completed Capabilities (Milestones 0–15)
 
 | Module | Core Capability | Status |
 |---|---|---|
@@ -96,102 +111,106 @@ When something goes wrong — an order spins endlessly, fails at checkout, or ti
 | **Module 12: Production Containerization** | Hardened multi-stage Dockerfiles (UID 10001), production Docker Compose, cloud-ready Kubernetes manifests, and automated 11-subsystem smoke test suite. | ✅ **Milestone 12 Complete** |
 | **Module 13: Large-Scale HPC Scalability** | Parallel discrete-event trace simulator, streaming chunk pipeline, and 1M+ trace benchmark (18.9M events). | ✅ **Milestone 13 Complete** |
 | **Module 14: Autonomous Closed-Loop Remediation** | Self-healing operational runtime control plane with deterministic safety invariants, exact-state rollback, and cryptographic SHA-256 audit ledger. | ✅ **Milestone 14 Complete** |
+| **Module 15: Enterprise Multi-Tenancy & Zero-Trust Security** | Tenant-isolated data persistence, RS256 token rotation, AES-256-GCM envelope encryption, and non-bypassable safety invariant guards. | ✅ **Milestone 15 Complete** |
 
 ---
 
-## 4. Key Performance Benchmarks
+## 4. Empirical Benchmarks & Verifiable Evidence
 
-All engine components are tested and benchmarked against strict reliability and latency criteria:
+All subsystem benchmarks are empirically verified and reproducible via automated test harnesses:
 
 ```text
 ================================================================================
   TraceMind Milestone Verification & Benchmark Summary
 ================================================================================
-  1. Kafka Event Streaming Throughput  : 25,151 events/sec (>5,000 target)     [PASSED]
-  2. In-Flight ML Prediction Metrics  : ROC-AUC: 0.985, F1: 0.942, P99: 1.8ms    [PASSED]
-  3. TreeSHAP Additive Consistency    : Max error < 1e-5 (Exact local fidelity)    [PASSED]
-  4. Anomaly Detection Recall (Chaos) : 210/210 detected (100.0% Recall)          [PASSED]
-  5. Nominal False Positive Rate (FPR): 3.0% (< 5.0% target)                      [PASSED]
-  6. Root-Cause Attribution Accuracy  : 175/175 (100.0% Ground-Truth Accuracy)    [PASSED]
-  7. RCA Single-Execution Latency     : P50: 0.53ms, P99: 1.15ms (< 10ms target)   [PASSED]
-  8. 3D Pareto Optimizer Latency      : P50: 0.13ms, P99: 0.37ms (6,045+ opt/sec)  [PASSED]
-  9. AI Analyst Grounding & Latency   : P99: 1.51ms, 95.75% Grounding, 0% Halluc   [PASSED]
- 10. Observability Overhead (Delta)   : Delta P99: +0.245ms (< 0.500ms target)     [PASSED]
- 11. 11-Subsystem Smoke Validation    : 11/11 Endpoints Verified (100% Pass)       [PASSED]
- 12. 1M+ Trace HPC Simulation Rate    : 22,120.9 exec/s | 426,239.4 events/s       [PASSED]
- 13. Remediation Synthesis Throughput : 18,981 plans/sec (P99: 0.124ms)            [PASSED]
- 14. In-Memory Actuation Throughput   : 54,612 actuations/sec (P99: 0.045ms)       [PASSED]
- 15. Verbatim Exact Rollback Speed    : 53,792 rollbacks/sec (P99: 0.038ms)        [PASSED]
- 16. Deterministic Invariant Fuzzing  : 100/100 rejected (100.0% safety gate)     [PASSED]
- 17. Cryptographic SHA-256 Chain      : 3,913 entries/sec (100% chain integrity)   [PASSED]
- 18. Closed-Loop Incident Recovery    : 7/7 chaos presets recovered (100.0%)       [PASSED]
- 19. Automated Test Suite             : 140/140 Unit & Integration Tests Passing   [PASSED]
- 20. Code Quality & Type Safety       : Mypy: 0 errors (187 files), Ruff: Clean    [PASSED]
+  1. Regression Test Suite              : 162/162 Tests Passing (10.79s execution)    [PASSED]
+  2. Static Typing & Linting Quality    : Mypy: 0 errors (144 source files), Ruff OK   [PASSED]
+  3. Kafka Ingestion Throughput         : 25,151 events/sec (>5,000 target)           [PASSED]
+  4. In-Flight ML Prediction Quality    : ROC-AUC: 0.992, F1-Score: 0.923 (CPU)        [PASSED]
+  5. TreeSHAP Additive Consistency      : Exact local fidelity (sum phi_i = f(x)-E[f]) [PASSED]
+  6. Anomaly Detection Benchmark Recall : 210/210 detected across chaos test traces    [PASSED]
+  7. Nominal False Positive Rate (FPR)  : 3.0% under nominal baseline traffic (< 5%)   [PASSED]
+  8. Root-Cause Attribution Accuracy    : 175/175 ground-truth incident evaluations    [PASSED]
+  9. RCA Single-Execution Latency       : P50: 0.53ms, P99: 1.15ms (< 10ms target)     [PASSED]
+ 10. 3D Pareto Optimizer Throughput     : P50: 0.13ms, P99: 0.37ms (6,045+ opt/sec)    [PASSED]
+ 11. AI Analyst Grounding Fidelity      : P99: 1.51ms, 95.75% grounding, 0% halluc     [PASSED]
+ 12. Observability Middleware Overhead  : Delta P99: +0.245ms (< 0.500ms target)       [PASSED]
+ 13. 1M+ Trace HPC Simulation Rate      : 22,120.9 exec/s | 426,239.4 events/s         [PASSED]
+ 14. Remediation Synthesis Throughput   : 18,981 plans/sec (P99: 0.124ms)              [PASSED]
+ 15. In-Memory Actuation Speed          : 54,612 actuations/sec (P99: 0.045ms)         [PASSED]
+ 16. Verbatim Exact Rollback Speed      : 53,792 rollbacks/sec (P99: 0.038ms)          [PASSED]
+ 17. Deterministic Invariant Fuzzing    : 100/100 unsafe plans rejected (100% gate)    [PASSED]
+ 18. Cryptographic SHA-256 Ledger Speed : 3,913 entries/sec (100% chain integrity)     [PASSED]
+ 19. RS256 JWT Token Verification       : 36,498 ops/sec (Mean latency: 27.2 us)       [PASSED]
+ 20. AES-256-GCM Envelope Encryption    : 290,827 ops/sec (Latency: 3.44 us)           [PASSED]
 ================================================================================
 ```
 
+> **Methodology & Context Note**:  
+> * **RCA & Anomaly Benchmarks**: Evaluated on synthetic discrete-event chaos injections with deterministic ground-truth labels.  
+> * **Microbenchmarks**: Measured in-memory on Intel Core multi-core host CPU with pinned memory baselines.  
+> * **HPC Scalability**: Profiled via `benchmarks/benchmark_hpc_scalability.py` maintaining peak memory strictly bounded to $\le 748.2\text{ MB}$.
 
 ---
 
 ## 5. Technology Stack
 
-* **Core Backend**: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.0 (AsyncIO), Alembic, Uvicorn, Structlog.
-* **Containerization & Deployment**: Docker (Multi-stage, Non-Root), Docker Compose, Kubernetes, Nginx.
-* **Observability & Telemetry**: OpenTelemetry (W3C standard), Prometheus Client (`/metrics`), Grafana.
-* **Machine Learning & Graph Theory**: XGBoost, Scikit-learn, SHAP, NumPy, Pandas, SimPy, NetworkX.
-* **Frontend UI**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Flow.
-* **Storage & Messaging**: PostgreSQL / TimescaleDB, Apache Kafka.
-* **Quality & CI**: GitHub Actions, Trivy, Pytest, Pytest-AsyncIO, Mypy, Ruff.
+* **Core Backend Framework**: Python 3.12, FastAPI, Pydantic v2, SQLAlchemy 2.0 (AsyncIO), Alembic, Uvicorn, Structlog.
+* **Database & Persistence**: PostgreSQL 16, TimescaleDB (partitioned hypertables), DuckDB (OLAP traces), SQLite/aiosqlite.
+* **Streaming & Event Bus**: Apache Kafka 3.7 (KRaft mode, zero ZooKeeper), aiokafka, Micro-Batch Ingestor.
+* **Machine Learning & Graph Theory**: XGBoost, Scikit-learn, SHAP (TreeSHAP), NumPy, Pandas, SimPy, NetworkX.
+* **Frontend Architecture**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, Canvas/SVG DAG visualizer.
+* **Observability & Metrics**: OpenTelemetry (W3C standard), Prometheus Client (`/metrics`), Grafana.
+* **Security & Cryptography**: Argon2id password hashing, AES-256-GCM envelope encryption, RS256/Ed25519 JWT signing, SHA-256 Merkle-style audit ledger chaining.
+* **Containerization & Orchestration**: Docker (multi-stage non-root builds), Docker Compose, Kubernetes manifests, Devcontainers.
+* **Quality Gates & CI**: GitHub Actions, Pytest, Pytest-AsyncIO, Mypy Strict, Ruff.
 
 ---
 
-## 6. Quick Start Guide
+## 6. Quick Start & Demonstration Options
 
-### Prerequisites
-* Python 3.12+ (or [uv](https://github.com/astral-sh/uv))
-* Node.js 20+ & npm
-* Docker & Docker Compose (optional for database & Kafka infrastructure)
+### Option A: 1-Command Local Docker Demo (Recommended)
+Runs the entire platform locally with zero external dependencies and zero cloud cost:
 
-### Local Setup in 5 Steps
+```bash
+# 1. Clone repository
+git clone https://github.com/rishabh211200/TraceMind.git
+cd TraceMind
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/rishabh211200/TraceMind.git
-   cd TraceMind
-   ```
+# 2. Start demo container topology (single exposed port 80)
+docker compose -f docker-compose.demo.yml --env-file .env.demo up -d --build
 
-2. **Set up Python virtual environment**:
-   ```bash
-   uv venv .venv --python 3.12
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   uv pip install -e ".[dev,ml]"
-   ```
+# 3. Seed deterministic telemetry, trained ML models & 4 showcase scenarios (2.2s)
+docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap.py
 
-3. **Install Frontend dependencies**:
-   ```bash
-   cd frontend
-   npm install
-   cd ..
-   ```
+# 4. Open dashboard in browser
+# URL: http://localhost
+# Admin User: admin@tracemind.io / TraceMind#Admin2026!
+# Viewer User: viewer@tracemind.io / Viewer#Demo2026!
+```
 
-4. **Start FastAPI Backend Server**:
-   ```bash
-   uvicorn apps.api.main:app --reload --port 8000
-   ```
-   * Interactive Swagger Documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
+### Option B: Local Python Development Setup
 
-5. **Start Frontend Dashboard**:
-   ```bash
-   cd frontend
-   npm run dev
-   ```
-   * Web Dashboard: [http://localhost:5173](http://localhost:5173)
+```bash
+# 1. Set up virtual environment
+uv venv .venv --python 3.12
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+uv pip install -e ".[dev,ml]"
+
+# 2. Run backend API Gateway
+uvicorn apps.api.main:app --reload --port 8000
+
+# 3. In a separate terminal, run frontend
+cd frontend
+npm install
+npm run dev
+```
 
 ---
 
-## 7. Synthetic Simulation & Chaos Testing (TraceSim CLI)
+## 7. Synthetic Simulation & Chaos Presets (TraceSim CLI)
 
-Generate synthetic microservice workflow telemetry and inject chaos scenarios directly from the terminal:
+TraceMind includes a high-performance discrete-event chaos simulator for generating realistic distributed telemetry from the terminal:
 
 ```bash
 # Generate 10,000 baseline synthetic workflow traces
@@ -208,76 +227,24 @@ Supported Chaos Presets:
 * `database_latency`: 5.5x database latency spike propagating to dependent customer, inventory, and payment services.
 * `payment_degradation`: 4.2x payment latency degradation and HTTP 504 gateway timeouts.
 * `traffic_spike`: 5x surge in workflow arrival rate, saturating service concurrency and driving queueing delays.
-* `service_failure`: 95% error rate injection simulating service crash.
-* `network_latency`: 180ms transit latency added across all inter-service RPC invocations.
-* `retry_storm`: Cascading retries amplifying load on degraded dependencies.
+* `service_failure`: 95% error rate injection simulating microservice process crashes.
+* `network_latency`: 180ms transit latency added across inter-service RPC hops.
+* `retry_storm`: Cascading retries amplifying load on degraded downstream dependencies.
 * `cascading_failure`: Multi-stage cascading failure across database, payment, and order queues.
 
 ---
 
-## 8. Large-Scale HPC Performance Benchmarking (1M+ Traces)
+## 8. Enterprise Multi-Tenancy & Zero-Trust Security
 
-TraceMind includes a dedicated HPC benchmarking harness (`benchmarks/benchmark_hpc_scalability.py`) that profiles performance across 7 distinct subsystems at scales up to 1,000,000+ executions (18.9M+ events):
-
-```bash
-# Run complete 7-suite benchmark at 10K tier
-python benchmarks/benchmark_hpc_scalability.py --tier 10K
-
-# Run complete 7-suite benchmark at 100K tier
-python benchmarks/benchmark_hpc_scalability.py --tier 100K
-
-# Run parallel scaling benchmark on 1,000,000 traces with bounded memory (<=2 GB)
-python benchmarks/benchmark_hpc_scalability.py --tier 1M --workers 16
-```
-
-Key Measured HPC Performance Highlights (Intel Core 20-Core, 32GB RAM):
-* **Batched ML Inference**: **3,217,345 predictions/sec** ($P_{99} = 0.0004\text{ ms/vector}$)
-* **TreeSHAP Attributions**: **455,641 attributions/sec** ($P_{99} = 0.0024\text{ ms/vector}$)
-* **Streaming Ingestion**: **704,138 events/sec** ($P_{99} = 0.0017\text{ ms}$)
-* **TimescaleDB Bulk Write**: **257,030 events/sec** ($P_{99} = 0.0046\text{ ms}$)
-* **Causal Graph Reasoning**: **1,480 root-cause diagnoses/sec**
-* **3D Pareto Optimizer**: **5,240 optimizations/sec** ($P_{99} = 0.248\text{ ms}$)
-* **Parallel Multi-Core Speedup**: **$8.55\times$ speedup on 4 cores** | **$6.97\times$ on 8 cores**
-* **Peak Memory Overhead**: Strictly bounded to **$\le 748.2\text{ MB}$** ($<2.0\text{ GB}$ budget)
-
-See [docs/research/hpc_scalability_report.md](docs/research/hpc_scalability_report.md) for the complete research whitepaper.
-
----
-
-## 9. Development Roadmap
-
-| Milestone | Scope & Deliverables | Status |
-|---|---|---|
-| **Milestone 0** | Monorepo structure, CI/CD pipelines, Ruff/Mypy/Pytest, Pydantic schemas | ✅ **Completed** |
-| **Milestone 1** | TraceSim discrete-event simulation engine + 7 chaos scenarios | ✅ **Completed** |
-| **Milestone 2** | PostgreSQL + TimescaleDB telemetry persistence & query engine | ✅ **Completed** |
-| **Milestone 3** | FastAPI core APIs, simulation controls, and contract tests | ✅ **Completed** |
-| **Milestone 4** | React/TypeScript interactive developer dashboard & topology graph | ✅ **Completed** |
-| **Milestone 5** | Apache Kafka streaming pipeline & async persistence (>25k events/sec) | ✅ **Completed** |
-| **Milestone 6** | Supervised ML failure/latency risk prediction + TreeSHAP explainability | ✅ **Completed** |
-| **Milestone 7** | Unsupervised multi-model anomaly detection engine | ✅ **Completed** |
-| **Milestone 8** | Graph-based deterministic root cause reasoning & propagation visualizer | ✅ **Completed** |
-| **Milestone 9** | Multi-objective workflow optimization & execution path routing | ✅ **Completed** |
-| **Milestone 10** | Tool-grounded conversational AI analyst grounded in telemetry | ✅ **Completed** |
-| **Milestone 11** | OpenTelemetry tracing, Prometheus exporter, Grafana dashboards | ✅ **Completed** |
-| **Milestone 12** | Multi-stage Docker containers, Kubernetes manifests, CI/CD & smoke tests | ✅ **Completed** |
-| **Milestone 13** | Large-scale HPC performance benchmarking (1M+ traces) & research report | ✅ **Completed** |
-| **Milestone 14** | Autonomous closed-loop remediation, policy engine & verbatim rollback | ✅ **Completed** |
-| **Milestone 15** | Enterprise multi-tenancy, Zero-Trust RS256 security, RBAC matrix & envelope encryption | ✅ **Completed** |
-
----
-
-## 10. Enterprise Multi-Tenancy & Zero-Trust Security Architecture
-
-TraceMind incorporates an enterprise-grade multi-tenancy and Zero-Trust cryptographic security architecture designed for strict data isolation and defense-in-depth:
+TraceMind incorporates enterprise-grade multi-tenancy and Zero-Trust cryptographic security designed for strict data isolation and defense-in-depth:
 
 ```text
                         ┌──────────────────────────────────────────────┐
                         │   Inbound HTTP / WebSocket Request          │
                         │   (Authorization: Bearer <RS256 JWT> / Key)  │
                         └──────────────────────┬───────────────────────┘
-                                               │
-                                               ▼
+                                                │
+                                                ▼
                         ┌──────────────────────────────────────────────┐
                         │     Zero-Trust Security Gateway / RBAC       │
                         │   - Asymmetric RS256 Signature Verification   │
@@ -285,43 +252,45 @@ TraceMind incorporates an enterprise-grade multi-tenancy and Zero-Trust cryptogr
                         │   - X-Tenant-Id Anti-Spoofing Defense        │
                         │   - Sliding-Window Rate Limiting (797k ops/s)│
                         └──────────────────────┬───────────────────────┘
-                                               │
-                                               ▼
+                                                │
+                                                ▼
                         ┌──────────────────────────────────────────────┐
                         │       Tenant-Scoped Execution Context        │
                         │       (Thread-Safe AsyncIO ContextVars)      │
                         └──────────────────────┬───────────────────────┘
-                                               │
-               ┌───────────────────────────────┼───────────────────────────────┐
-               │                               │                               │
-               ▼                               ▼                               ▼
-    ┌─────────────────────┐         ┌─────────────────────┐         ┌─────────────────────┐
-    │ Multi-Tenant DB     │         │ Envelope Encryption │         │ Non-Bypassable M14  │
-    │ All models scoped   │         │ AES-256-GCM (v1 tag)│         │ Remediation Safety  │
-    │ to tenant_id index  │         │ Argon2id Passwords  │         │ Invariant Guard     │
-    └─────────────────────┘         └─────────────────────┘         └─────────────────────┘
+                                                │
+                ┌───────────────────────────────┼───────────────────────────────┐
+                │                               │                               │
+                ▼                               ▼                               ▼
+     ┌─────────────────────┐         ┌─────────────────────┐         ┌─────────────────────┐
+     │ Multi-Tenant DB     │         │ Envelope Encryption │         │ Non-Bypassable M14  │
+     │ All models scoped   │         │ AES-256-GCM (v1 tag)│         │ Remediation Safety  │
+     │ to tenant_id index  │         │ Argon2id Passwords  │         │ Invariant Guard     │
+     └─────────────────────┘         └─────────────────────┘         └─────────────────────┘
 ```
 
-### Security & Multi-Tenancy Capabilities:
-* **Strict Tenant Data Isolation**: Every domain entity and database model (`workflows`, `executions`, `traces`, `incidents`, `anomalies`, `predictions`, `root_causes`, `optimizations`, `remediations`, `analyst_conversations`, `api_keys`, `users`) contains an indexed `tenant_id` column ensuring cross-tenant queries and IDOR/BOLA attacks are strictly blocked.
-* **Authoritative Tenant Claims & Anti-Spoofing**: The JWT token is the authoritative source of tenant identity. If an inbound request provides an `X-Tenant-Id` header that conflicts with the token's `tenant_id`, the request is rejected with `403 Forbidden` (`TenantMismatchException`) unless executed by a `PLATFORM_ADMIN`.
-* **Asymmetric RS256 Token Lifecycle**: RS256 asymmetric signature verification with 15-minute access tokens and 7-day single-use refresh token rotation with atomic database revocation blocklisting.
-* **Granular RBAC Engine**: 5 hierarchical roles (`PLATFORM_ADMIN`, `TENANT_ADMIN`, `OPERATOR`, `ANALYST`, `VIEWER`) mapping to 24 granular permissions across all REST and streaming endpoints.
-* **Cryptographic Secrets & Envelopes**: Passwords hashed with `Argon2id` (v=19, memory=19MB, parallelism=1); sensitive integrations encrypted with versioned `AES-256-GCM` envelopes (`v1:<key_id>:<nonce>:<ciphertext>:<tag>`).
-* **Non-Bypassable M14 Safety Shield**: Even privileged administrators cannot execute remediation plans that violate blast radius, rate-of-change, or canary health safety invariants.
-* **Sliding-Window Rate Limiter**: High-throughput in-memory rate limiter per tenant/IP enforcing custom RPM quotas with zero external caching dependencies.
-
-### Security Microbenchmark Performance:
-* **AES-256-GCM Envelope Encryption**: **290,827 ops/sec** (Latency: 3.44 µs)
-* **AES-256-GCM Envelope Decryption**: **285,111 ops/sec** (Latency: 3.51 µs)
-* **RS256 JWT Token Verification**: **36,498 ops/sec** (Mean latency: **0.0272 ms** [27.2 µs], $P_{99}$: **0.0546 ms**)
-* **Sliding-Window Rate Limiter**: **797,857 checks/sec** (Latency: 1.25 µs)
-* **Argon2id Password Hashing**: **22.39 ms** (Verification: **23.22 ms**)
+* **Strict Multi-Tenant Isolation**: All domain models and database tables (`workflows`, `executions`, `traces`, `incidents`, `anomalies`, `predictions`, `root_causes`, `optimizations`, `remediations`, `api_keys`, `users`) contain an indexed `tenant_id` column to prevent IDOR/BOLA cross-tenant data leaks.
+* **Authoritative Tenant Claims**: Inbound JWT claims dictate tenant identity; mismatches between `X-Tenant-Id` and token claims are rejected with `403 Forbidden`.
+* **Asymmetric RS256 Token Lifecycle**: 15-minute access tokens with 7-day single-use refresh token rotation and database revocation blocklisting.
+* **Hierarchical RBAC Matrix**: 5 roles (`PLATFORM_ADMIN`, `TENANT_ADMIN`, `OPERATOR`, `ANALYST`, `VIEWER`) across 24 granular permissions.
+* **Envelope Encryption**: Sensitive integrations encrypted with versioned `AES-256-GCM` envelopes (`v1:<key_id>:<nonce>:<ciphertext>:<tag>`).
+* **Non-Bypassable Remediation Shield**: Automated and manual remediation actions are validated by deterministic safety guards enforcing blast radius ($\le 30\%$), acyclicity, and capacity headroom bounds.
 
 ---
 
-## 11. License
+## 9. Documentation & Research Sitemap
+
+* **Demonstration Walkthrough Guide**: [`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md)
+* **Showcase & Release Audit**: [`docs/SHOWCASE_READINESS_AUDIT.md`](docs/SHOWCASE_READINESS_AUDIT.md)
+* **HPC Scalability Research Whitepaper (1M+ Traces)**: [`docs/research/hpc_scalability_report.md`](docs/research/hpc_scalability_report.md)
+* **Architecture Specifications**:
+  * [Persistence & Telemetry Schema](docs/architecture/persistence.md)
+  * [Observability & OpenTelemetry](docs/architecture/observability.md)
+  * [Production Deployment & Containerization](docs/architecture/deployment.md)
+* **Milestone Execution History**: [`docs/project-history.md`](docs/project-history.md)
+
+---
+
+## 10. License
 
 This project is licensed under the terms of the [MIT License](LICENSE).
-
-

@@ -189,7 +189,7 @@ This document outlines the phased milestone execution plan for TraceMind.
   - Production Docker Compose stack (`docker-compose.prod.yml`) with CPU/Memory limits, logging rotation, healthchecks, isolated bridge network, and persistent named volumes.
   - Cloud-ready declarative Kubernetes manifests (`infrastructure/k8s/`) covering Namespace, ConfigMap, Secrets template, Migration Job, API Deployment with HPA (2–10 replicas), Worker Deployment, Frontend Deployment, Services, and Ingress with TLS.
   - Automated CI/CD deployment workflow (`.github/workflows/deploy.yml`) with Docker layer caching, Trivy security vulnerability scanning, and dry-run validation.
-  - Zero-dependency production smoke test suite ([`scripts/smoke_test.py`](file:///c:/Users/Rishabh.Gupta/Personal_Projects/TraceMind/scripts/smoke_test.py)) validating all 11 subsystems end-to-end with 100% pass rate.
+
 * **Status**: Completed
 
 ---

@@ -100,7 +100,7 @@ Cloud-ready manifests for managed Kubernetes clusters (AWS EKS, GCP GKE, Azure A
 
 ## 4. Production Validation: 11-Subsystem Smoke Test Suite
 
-The zero-dependency script [`scripts/smoke_test.py`](file:///c:/Users/Rishabh.Gupta/Personal_Projects/TraceMind/scripts/smoke_test.py) validates the entire platform end-to-end:
+
 
 ```bash
 python scripts/smoke_test.py http://localhost:8000

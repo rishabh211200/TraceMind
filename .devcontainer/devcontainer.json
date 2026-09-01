@@ -1,0 +1,41 @@
+{
+  "name": "TraceMind Technical Showcase (Codespaces)",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "version": "latest",
+      "enableNonRootDocker": "true"
+    },
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "20"
+    }
+  },
+  "forwardPorts": [80, 5173, 8000],
+  "portsAttributes": {
+    "80": {
+      "label": "TraceMind Showcase Dashboard",
+      "onAutoForward": "openBrowser"
+    },
+    "8000": {
+      "label": "TraceMind REST API & OpenAPI Docs",
+      "onAutoForward": "silent"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "charliermarsh.ruff",
+        "dbaeumer.vscode-eslint",
+        "bradlc.vscode-tailwindcss"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/app/.venv/bin/python",
+        "editor.formatOnSave": true
+      }
+    }
+  },
+  "postCreateCommand": "docker compose -f docker-compose.demo.yml --env-file .env.demo up --build -d && docker compose -f docker-compose.demo.yml exec -T api python scripts/demo_bootstrap.py",
+  "remoteUser": "vscode"
+}
