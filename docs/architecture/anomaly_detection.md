@@ -19,26 +19,24 @@ The **Unsupervised Anomaly Detection Engine** (Milestone 7) provides real-time i
 
 ```mermaid
 flowchart TD
-    E[Trace Event Stream / Executed Spans] --> Comp[CompositeAnomalyDetector]
+    E["Trace Event Stream / Executed Spans"] --> Comp["CompositeAnomalyDetector"]
     
-    subgraph Detectors [Ensemble Anomaly Detectors]
-        Comp --> IF[WorkflowIsolationForestDetector\n16-dim Prefix Features & Sigmoid]
-        Comp --> LAT[ServiceLatencyAnomalyDetector\nRobust IQR & MAD Z-Scores]
-        Comp --> SEQ[TransitionPathAnomalyDetector\nMarkov Causal DAG Transitions]
-        Comp --> CASC[ErrorCascadeAnomalyDetector\nRetry Bursts & Cascading Outages]
+    subgraph Detectors ["Ensemble Anomaly Detectors"]
+        Comp --> IF["WorkflowIsolationForestDetector<br/>16-dim Prefix Features & Sigmoid"]
+        Comp --> LAT["ServiceLatencyAnomalyDetector<br/>Robust IQR & MAD Z-Scores"]
+        Comp --> SEQ["TransitionPathAnomalyDetector<br/>Markov Causal DAG Transitions"]
+        Comp --> CASC["ErrorCascadeAnomalyDetector<br/>Retry Bursts & Cascading Outages"]
     end
     
-    IF --> Agg[Aggregation & Severity Ranker\n[0.0, 1.0] Range]
+    IF --> Agg["Aggregation & Severity Ranker<br/>(0.0 to 1.0 Range)"]
     LAT --> Agg
     SEQ --> Agg
     CASC --> Agg
     
-    Agg --> DB[(PostgreSQL / SQLite\nworkflow_anomalies Table)]
-    Agg --> REST[FastAPI REST API\n/api/v1/anomalies]
-    REST --> UI[React Frontend Explorer\nMetric Cards, Table & Drawer]
+    Agg --> DB[("PostgreSQL / SQLite<br/>workflow_anomalies Table")]
+    Agg --> REST["FastAPI REST API<br/>/api/v1/anomalies"]
+    REST --> UI["React Frontend Explorer<br/>Metric Cards, Table & Drawer"]
 ```
-
----
 
 ## 3. Mathematical Formulations & Calibration
 
