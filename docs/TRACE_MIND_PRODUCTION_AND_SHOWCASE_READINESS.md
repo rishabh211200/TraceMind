@@ -180,42 +180,42 @@ The following technical inventory reflects verified components across `apps/`, `
 
 ```mermaid
 flowchart TB
-    User([User / Browser / External Client])
+    User(["User / Browser / External Client"])
 
-    subgraph EdgeLayer [Edge & Security Perimeter]
-        Ingress[Nginx / Kubernetes Ingress\nTLS Termination & Security Headers]
+    subgraph EdgeLayer ["Edge & Security Perimeter"]
+        Ingress["Nginx / Kubernetes Ingress<br/>TLS Termination & Security Headers"]
     end
 
-    subgraph PresentationLayer [Presentation Plane]
-        Frontend[React 18 SPA Dashboard\nTopology | Waterfalls | Security Center | Optimizer]
+    subgraph PresentationLayer ["Presentation Plane"]
+        Frontend["React 18 SPA Dashboard<br/>Topology / Waterfalls / Security Center / Optimizer"]
     end
 
-    subgraph APILayer [API Gateway & Control Plane]
-        FastAPI[FastAPI Async Gateway :8000\nRFC 7807 Error Handling | Lifespan Manager]
-        AuthGate{Auth & RBAC Dependency\nRS256 JWT & API Key Verifier}
-        AntiSpoof[Anti-Spoofing & Tenant Context\nContextVar Propagation & Sliding Rate Limiter]
-        SubsystemRouters[Subsystem REST Routers\n/workflows | /predictions | /anomalies | /remediation]
+    subgraph APILayer ["API Gateway & Control Plane"]
+        FastAPI["FastAPI Async Gateway :8000<br/>RFC 7807 Error Handling / Lifespan Manager"]
+        AuthGate{"Auth & RBAC Dependency<br/>RS256 JWT & API Key Verifier"}
+        AntiSpoof["Anti-Spoofing & Tenant Context<br/>ContextVar Propagation & Sliding Rate Limiter"]
+        SubsystemRouters["Subsystem REST Routers<br/>/workflows / /predictions / /anomalies / /remediation"]
     end
 
-    subgraph StorageLayer [Data & Streaming Plane]
-        Timescale[(TimescaleDB / PostgreSQL 16\nHypertables | Multi-Tenant Data | Repositories)]
-        KafkaBroker[[Apache Kafka 3.7.0 KRaft\ntracemind.events.raw | 3 Partitions]]
-        StreamWorker[Streaming Ingestor Daemon\nMicro-Batching: 1,000 events / 50ms]
+    subgraph StorageLayer ["Data & Streaming Plane"]
+        Timescale[("TimescaleDB / PostgreSQL 16<br/>Hypertables / Multi-Tenant Data / Repositories")]
+        KafkaBroker[["Apache Kafka 3.7.0 KRaft<br/>tracemind.events.raw / 3 Partitions"]]
+        StreamWorker["Streaming Ingestor Daemon<br/>Micro-Batching: 1,000 events / 50ms"]
     end
 
-    subgraph IntelligencePlane [Embedded ML & Reasoning Engines]
-        ML_Predictor[XGBoost Failure Classifier & TreeSHAP Explainer\n37K extractions/s | P99 4.37ms]
-        AnomalyEngine[Composite Anomaly Detector\nIsoForest + Latency IQR + Markov DAG + Cascades]
-        RCAEngine[Causal DAG Root Cause Engine\nDeterministic Pattern Matcher | P99 1.15ms]
-        OptimizerEngine[3D Pareto Workflow Optimizer\nLatency vs Cost vs Reliability | 6K opt/s]
-        RemediationPlane[Remediation Safety Guards & Policy Engine\nBlast-Radius Gates | SHA-256 Audit Ledger]
-        AIAnalystEngine[Tool-Grounded AI Analyst\nReAct Orchestration | Grounding Verifier]
+    subgraph IntelligencePlane ["Embedded ML & Reasoning Engines"]
+        ML_Predictor["XGBoost Failure Classifier & TreeSHAP Explainer<br/>37K extractions/s / P99 4.37ms"]
+        AnomalyEngine["Composite Anomaly Detector<br/>IsoForest + Latency IQR + Markov DAG + Cascades"]
+        RCAEngine["Causal DAG Root Cause Engine<br/>Deterministic Pattern Matcher / P99 1.15ms"]
+        OptimizerEngine["3D Pareto Workflow Optimizer<br/>Latency vs Cost vs Reliability / 6K opt/s"]
+        RemediationPlane["Remediation Safety Guards & Policy Engine<br/>Blast-Radius Gates / SHA-256 Audit Ledger"]
+        AIAnalystEngine["Tool-Grounded AI Analyst<br/>ReAct Orchestration / Grounding Verifier"]
     end
 
-    subgraph ObservabilityStack [Telemetry & Monitoring Platform]
-        OTelMiddleware[Tracing & Metrics Middleware\nW3C traceparent | Structlog Context]
-        PrometheusServer[(Prometheus 2.53\nScrapes /metrics)]
-        GrafanaUI[Grafana 11.1\n8 Pre-Configured Visual Panels]
+    subgraph ObservabilityStack ["Telemetry & Monitoring Platform"]
+        OTelMiddleware["Tracing & Metrics Middleware<br/>W3C traceparent / Structlog Context"]
+        PrometheusServer[("Prometheus 2.53<br/>Scrapes /metrics")]
+        GrafanaUI["Grafana 11.1<br/>8 Pre-Configured Visual Panels"]
     end
 
     %% Flow Connections
@@ -253,8 +253,6 @@ flowchart TB
 ```
 
 ### 2.2 Execution Paths & System Boundaries
-
-* **Synchronous Request Paths**:
   * REST API queries (`/api/v1/workflows`, `/api/v1/executions/{id}`, `/api/v1/services/topology`).
   * In-flight ML prediction (`POST /api/v1/predictions/predict`) — executes on-CPU in ~1.8ms.
   * Anomaly detection (`POST /api/v1/anomalies/detect`) — executes in ~2.2ms.

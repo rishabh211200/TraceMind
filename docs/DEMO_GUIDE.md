@@ -50,7 +50,19 @@ docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap
 
 ---
 
+## 3. Demo Showcase Credentials & Access Points
 
+> ⚠️ **DEMO-ONLY CREDENTIALS NOTICE**:  
+> All credentials listed below (`admin@tracemind.io`, `TraceMind#Admin2026!`, `tm_live_demo_...`) are strictly ephemeral, deterministic demo values generated locally by `scripts/demo_bootstrap.py` in your local container database. They have **zero access** to any external cloud service, production infrastructure, or public network.
+
+| Resource | URL / Port | Credentials / Notes |
+|---|---|---|
+| **TraceMind Web Dashboard** | `http://localhost` (or Codespaces Port 80) | Public read-only exploration by default (`Role.VIEWER`). |
+| **System Admin Login** | Click **Security** $\rightarrow$ Sign In | Email: `admin@tracemind.io`<br>Password: `TraceMind#Admin2026!` (Demo Only) |
+| **Guest Viewer Login** | Click **Security** $\rightarrow$ Sign In | Email: `viewer@tracemind.io`<br>Password: `Viewer#Demo2026!` (Demo Only) |
+| **Fixed Demo API Key** | Header: `X-API-Key` | `tm_live_demo_0123456789abcdef0123456789abcdef` (Demo Only) |
+| **OpenAPI Swagger UI** | `http://localhost/docs` | Interactive REST & SSE API documentation. |
+| **Prometheus Raw Metrics** | `http://localhost/metrics` | Proxied through Nginx. |
 
 ---
 
@@ -60,10 +72,10 @@ The bootstrap seeder initializes 4 realistic failure scenarios ready for live wa
 
 ```mermaid
 flowchart LR
-    Scenario1[1. Database Saturation\ninventory-db Spike] --> RCA1[Causal DAG RCA\n100% Confidence] --> Opt1[3D Pareto Optimizer\n87.8% Latency Cut] --> Rem1[Safe Actuation\nSHA-256 Audit Trail]
-    Scenario2[2. Cascading Failure\nPayment + Notification] --> Safety2[M14 Safety Guard\nCausal Acyclicity Gate] --> Reject2[Plan REJECTED\nCascade Prevented]
-    Scenario3[3. Retry Storm\nAuth-Service 5x Retries] --> Cascade3[Anomaly Detector\nRetry Burst Flagged] --> Cooldown3[Anti-Flapping\n300s Cooldown Enforced]
-    Scenario4[4. Nominal Baseline\nMulti-Service DAG] --> Telemetry4[Sub-ms Baseline\nP50: 42ms | P99: 85ms]
+    Scenario1["1. Database Saturation<br/>inventory-db Spike"] --> RCA1["Causal DAG RCA<br/>100% Confidence"] --> Opt1["3D Pareto Optimizer<br/>87.8% Latency Cut"] --> Rem1["Safe Actuation<br/>SHA-256 Audit Trail"]
+    Scenario2["2. Cascading Failure<br/>Payment + Notification"] --> Safety2["M14 Safety Guard<br/>Causal Acyclicity Gate"] --> Reject2["Plan REJECTED<br/>Cascade Prevented"]
+    Scenario3["3. Retry Storm<br/>Auth-Service 5x Retries"] --> Cascade3["Anomaly Detector<br/>Retry Burst Flagged"] --> Cooldown3["Anti-Flapping<br/>300s Cooldown Enforced"]
+    Scenario4["4. Nominal Baseline<br/>Multi-Service DAG"] --> Telemetry4["Sub-ms Baseline<br/>P50: 42ms / P99: 85ms"]
 ```
 
 ### Scenario 1: Database Saturation & Autonomous Closed-Loop Self-Healing

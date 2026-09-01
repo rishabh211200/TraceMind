@@ -11,29 +11,27 @@
 
 ### 1.1 Current Architectural Baseline & Delivered Capabilities
 
-Over Milestones 0 through 13, **TraceMind** has evolved from a foundational monorepo into an enterprise-grade, high-performance distributed workflow intelligence platform. The table below catalogs the current operational subsystems, their interfaces, and verified capabilities:
-
 ```mermaid
 flowchart TB
-    subgraph DataPlane [High-Throughput Ingestion & Simulation]
-        TraceSim[M1/M13: Parallel Discrete-Event Simulator\n22.1K exec/s | 426K ev/s]
-        Kafka[M5: Kafka Streaming Pipeline\nBounded Ring-Buffers | 704K ev/s]
-        Timescale[M2: TimescaleDB / PostgreSQL\nHypertables | 257K ev/s bulk write]
+    subgraph DataPlane ["High-Throughput Ingestion & Simulation"]
+        TraceSim["M1/M13: Parallel Discrete-Event Simulator<br/>22.1K exec/s / 426K ev/s"]
+        Kafka["M5: Kafka Streaming Pipeline<br/>Bounded Ring-Buffers / 704K ev/s"]
+        Timescale["M2: TimescaleDB / PostgreSQL<br/>Hypertables / 257K ev/s bulk write"]
     end
 
-    subgraph IntelligencePlane [ML & Reasoning Subsystems]
-        M6_ML[M6: Temporal Risk Predictor\nXGBoost Matrix Predict: 3.2M preds/s\nTreeSHAP Attributions: 455K attr/s]
-        M7_Anom[M7: Multi-Model Anomaly Detectors\nIsoForest, Autoencoder, DBSCAN, DAG Edit\n59.2K spans/s]
-        M8_RCA[M8: Causal DAG Root Cause Engine\n7 Fault Signatures | 1.48K diag/s | 98.4% Acc]
-        M9_Opt[M9: 3D Pareto Workflow Optimizer\nLatency / Cost / Reliability | 5.24K opt/s]
-        M10_Analyst[M10: Grounded AI Analyst\nAsync Tool RAG | Multi-Turn Memory | 693 turns/s]
+    subgraph IntelligencePlane ["ML & Reasoning Subsystems"]
+        M6_ML["M6: Temporal Risk Predictor<br/>XGBoost Matrix Predict: 3.2M preds/s<br/>TreeSHAP Attributions: 455K attr/s"]
+        M7_Anom["M7: Multi-Model Anomaly Detectors<br/>IsoForest, Autoencoder, DBSCAN, DAG Edit<br/>59.2K spans/s"]
+        M8_RCA["M8: Causal DAG Root Cause Engine<br/>7 Fault Signatures / 1.48K diag/s / 98.4% Acc"]
+        M9_Opt["M9: 3D Pareto Workflow Optimizer<br/>Latency / Cost / Reliability / 5.24K opt/s"]
+        M10_Analyst["M10: Grounded AI Analyst<br/>Async Tool RAG / Multi-Turn Memory / 693 turns/s"]
     end
 
-    subgraph ObservabilityPlatform [Observability, APIs & Infrastructure]
-        M3_API[M3: FastAPI Async Gateway\nRFC 7807 Problem Details | P99 < 5ms]
-        M4_UI[M4: React/TypeScript Dashboard\nTopology Graph | Trace Tree | Live Inspector]
-        M11_OTel[M11: OpenTelemetry & Prometheus\nW3C Trace Context | Grafana Provisioning]
-        M12_Cloud[M12: Hardened Docker & Kubernetes\nNon-Root Containers | HPA | Smoke Tests]
+    subgraph ObservabilityPlatform ["Observability, APIs & Infrastructure"]
+        M3_API["M3: FastAPI Async Gateway<br/>RFC 7807 Problem Details / P99 < 5ms"]
+        M4_UI["M4: React/TypeScript Dashboard<br/>Topology Graph / Trace Tree / Live Inspector"]
+        M11_OTel["M11: OpenTelemetry & Prometheus<br/>W3C Trace Context / Grafana Provisioning"]
+        M12_Cloud["M12: Hardened Docker & Kubernetes<br/>Non-Root Containers / HPA / Smoke Tests"]
     end
 
     TraceSim --> Kafka --> Timescale
@@ -137,13 +135,13 @@ When distributed incidents occur (e.g. database saturation, downstream payment s
 ```mermaid
 sequenceDiagram
     autonumber
-    participant Telemetry as Telemetry Stream (M5/M11)
-    participant Diagnostics as ML / RCA / Optimizer (M6-M9)
-    participant PolicyEngine as M14 Policy & Safety Guard
-    participant ActuationEngine as M14 Remediation Actuator
-    participant TargetSystem as Service Mesh / Gateway / Workflows
-    participant Verification as M14 Rollback & Health Verifier
-    participant Analyst as M10 AI Analyst & M4 UI
+    participant Telemetry as "Telemetry Stream (M5/M11)"
+    participant Diagnostics as "ML / RCA / Optimizer (M6-M9)"
+    participant PolicyEngine as "M14 Policy & Safety Guard"
+    participant ActuationEngine as "M14 Remediation Actuator"
+    participant TargetSystem as "Service Mesh / Gateway / Workflows"
+    participant Verification as "M14 Rollback & Health Verifier"
+    participant Analyst as "M10 AI Analyst & M4 UI"
 
     Telemetry->>Diagnostics: Ingest trace events & spans
     Diagnostics->>Diagnostics: Detect anomaly (M7) + Predict failure (M6) + Diagnose RCA (M8)
@@ -152,9 +150,9 @@ sequenceDiagram
     PolicyEngine->>PolicyEngine: Evaluate policy rules & safety invariants
     PolicyEngine->>PolicyEngine: Compute Blast Radius & Target Scope
     
-    alt Policy Mode == AUTOMATIC
+    alt Policy Mode is AUTOMATIC
         PolicyEngine->>ActuationEngine: Dispatch Action Plan (CIRCUIT_BREAK, TRAFFIC_DIVERT, RATE_LIMIT)
-    else Policy Mode == SUPERVISED / ADVISORY
+    else Policy Mode is SUPERVISED or ADVISORY
         PolicyEngine->>Analyst: Post Action Plan for Human-In-The-Loop Approval
         Analyst->>ActuationEngine: Operator Approves Action
     end
@@ -167,7 +165,7 @@ sequenceDiagram
         Verification->>Verification: Compare vs Baseline (P95 latency, failure rate)
     end
 
-    alt System Health Restored (P95 < Target, Error Rate < 1%)
+    alt System Health Restored (P95 within Target, Error Rate under 1 percent)
         Verification->>PolicyEngine: Mark Remediation SUCCESS & Log Immutable Audit Ledger
         Verification->>Analyst: Notify Successful Autonomous Recovery
     else Degradation Persists or Worsens
@@ -176,8 +174,6 @@ sequenceDiagram
         Verification->>Analyst: Alert On-Call of Failed Mitigation & Rollback
     end
 ```
-
----
 
 ### 3.3 Major Subsystems & Modules to Implement
 
