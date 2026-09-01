@@ -83,11 +83,11 @@ When a failure occurs — an order spins endlessly, checkout times out with HTTP
  │              │                                                                                          │
  │              ▼                                                                                          │
  │  7. OPERATIONAL DASHBOARD & INTERACTIVE REASONING                                                       │
- │  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐      │
- │  │ React 18 / Vite Real-Time Dashboard (Topologies, Causal Trees, Pareto Curves, Audit Logs)   │      │
- │  │ SSE Streaming AI ReAct Analyst (MockLLM / GPT-4o Support) + OpenTelemetry & Prometheus /   │      │
- │  │ Grafana Observability Suite                                                                 │      │
- │  └─────────────────────────────────────────────────────────────────────────────────────────────┘      │
+ │  ┌─────────────────────────────────────────────────────────────────────────────────────────────┐        │
+ │  │ React 18 / Vite Real-Time Dashboard (Topologies, Causal Trees, Pareto Curves, Audit Logs)   │        │
+ │  │ SSE Streaming AI ReAct Analyst (MockLLM / GPT-4o Support) + OpenTelemetry & Prometheus /    │        │
+ │  │ Grafana Observability Suite                                                                 │        │
+ │  └─────────────────────────────────────────────────────────────────────────────────────────────┘        │
  └─────────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
