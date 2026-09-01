@@ -71,11 +71,26 @@ docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap
 The bootstrap seeder initializes 4 realistic failure scenarios ready for live walkthroughs:
 
 ```mermaid
-flowchart LR
-    Scenario1["1. Database Saturation<br/>inventory-db Spike"] --> RCA1["Causal DAG RCA<br/>100% Confidence"] --> Opt1["3D Pareto Optimizer<br/>87.8% Latency Cut"] --> Rem1["Safe Actuation<br/>SHA-256 Audit Trail"]
-    Scenario2["2. Cascading Failure<br/>Payment + Notification"] --> Safety2["M14 Safety Guard<br/>Causal Acyclicity Gate"] --> Reject2["Plan REJECTED<br/>Cascade Prevented"]
-    Scenario3["3. Retry Storm<br/>Auth-Service 5x Retries"] --> Cascade3["Anomaly Detector<br/>Retry Burst Flagged"] --> Cooldown3["Anti-Flapping<br/>300s Cooldown Enforced"]
-    Scenario4["4. Nominal Baseline<br/>Multi-Service DAG"] --> Telemetry4["Sub-ms Baseline<br/>P50: 42ms / P99: 85ms"]
+flowchart TD
+    subgraph S1 ["1. Database Saturation Scenario"]
+        A1["inventory-db Latency Spike"] --> B1["Causal DAG RCA (100% Confidence)"]
+        B1 --> C1["3D Pareto Optimizer (87.8% Latency Cut)"]
+        C1 --> D1["Safe In-Memory Actuation (SHA-256 Ledger)"]
+    end
+
+    subgraph S2 ["2. Cascading Failure Scenario"]
+        A2["Payment + Notification Failure"] --> B2["M14 Safety Guard (Acyclicity Check)"]
+        B2 --> C2["Plan REJECTED (Cascade Prevented)"]
+    end
+
+    subgraph S3 ["3. Retry Storm Scenario"]
+        A3["Auth-Service 5x Retries"] --> B3["Anomaly Cascade Detector"]
+        B3 --> C3["Anti-Flapping (300s Cooldown Enforced)"]
+    end
+
+    subgraph S4 ["4. Nominal Baseline"]
+        A4["8-Microservice Workflow"] --> B4["Sub-ms Telemetry (P50: 42ms, P99: 85ms)"]
+    end
 ```
 
 ### Scenario 1: Database Saturation & Autonomous Closed-Loop Self-Healing
