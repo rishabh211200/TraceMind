@@ -21,6 +21,7 @@ RUN groupadd -g 10001 tracemind && \
     useradd -u 10001 -g tracemind -s /bin/false -m tracemind
 
 COPY --from=builder /install /usr/local/lib/python3.12/site-packages
+COPY --chown=tracemind:tracemind apps /app/apps
 COPY --chown=tracemind:tracemind packages /app/packages
 COPY --chown=tracemind:tracemind migrations /app/migrations
 COPY --chown=tracemind:tracemind alembic.ini pyproject.toml README.md /app/
