@@ -43,7 +43,11 @@ COPY --from=builder /bin/uv /bin/uv
 COPY --chown=tracemind:tracemind apps /app/apps
 COPY --chown=tracemind:tracemind packages /app/packages
 COPY --chown=tracemind:tracemind migrations /app/migrations
+COPY --chown=tracemind:tracemind scripts /app/scripts
 COPY --chown=tracemind:tracemind alembic.ini pyproject.toml README.md /app/
+
+# Create data directory and ensure /app ownership
+RUN mkdir -p /app/data && chown -R tracemind:tracemind /app
 
 # Environment Variables
 ENV PYTHONUNBUFFERED=1 \
@@ -60,4 +64,4 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8000/api/v1/health || exit 1
 
-CMD ["uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-access-log"]
+CMD ["python", "-m", "uvicorn", "apps.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--no-access-log"]

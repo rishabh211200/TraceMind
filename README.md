@@ -12,20 +12,25 @@
 
 ---
 
-> 🚀 **Quick Interactive Demo (Zero Cloud Cost & Under 60 Seconds)**  
-> Experience the complete TraceMind platform (M0–M15) locally or in GitHub Codespaces without any paid cloud dependencies or external API keys:  
-> ```bash
-> # 1. Start the single-port demo stack (Port 80 only)
-> docker compose -f docker-compose.demo.yml --env-file .env.demo up -d --build
-> 
-> # 2. Seed deterministic chaos telemetry, trained ML models & 4 showcase scenarios
-> docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap.py
-> 
-> # 3. Open dashboard at http://localhost (Admin: admin@tracemind.io / TraceMind#Admin2026!)
-> ```
-> * **Zero Outbound AI Calls**: Uses in-process `MockLLMClient` with deterministic regex/keyword tool resolution.  
-> * **Zero External Actuation**: Uses `InMemoryRoutingActuator` with thread-safe state snapshots.  
-> * Full step-by-step walkthrough & scenario storyboards: **[`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md)**
+## ⚡ Zero-Cost Interactive Demonstration (GitHub Codespaces & Docker)
+
+Experience the complete TraceMind platform (M0–M15) running live in your browser via **GitHub Codespaces** or locally via **Docker Compose** with zero setup, zero cloud costs, and zero external API keys:
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/rishabh211200/TraceMind?quickstart=1)
+
+```bash
+# Or run locally in one command (Single port 80 exposed):
+docker compose -f docker-compose.demo.yml --env-file .env.demo up -d --build
+docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap.py
+# Open: http://localhost (Admin: admin@tracemind.io / TraceMind#Admin2026!)
+```
+
+### 🔒 Showcase Safety & Hermetic Perimeter
+* **$0.00 Cloud Cost Perimeter**: Uses in-process `MockLLMClient` with deterministic ReAct diagnostic reasoning. Zero OpenAI/Anthropic/cloud API tokens required.
+* **Safe In-Memory Actuation**: Remediations operate strictly inside thread-safe state dictionaries (`InMemoryRoutingActuator`). Zero real cloud network calls or webhooks are dispatched.
+* **Single-Port Exposure**: Only Nginx (Port 80) is exposed to the host. PostgreSQL, Kafka, Prometheus, Grafana, and API remain strictly isolated on the private container bridge.
+* **Pre-Seeded Showcase Scenarios**: Database saturation, cascading failure prevention, upstream retry storms, and nominal microservice baselines pre-seeded in 2 seconds.
+* Full Walkthrough & Presentation Guide: **[`docs/DEMO_GUIDE.md`](docs/DEMO_GUIDE.md)**
 
 ---
 
@@ -124,7 +129,7 @@ All subsystem benchmarks are empirically verified and reproducible via automated
   TraceMind Milestone Verification & Benchmark Summary
 ================================================================================
   1. Regression Test Suite              : 162/162 Tests Passing (10.79s execution)    [PASSED]
-  2. Static Typing & Linting Quality    : Mypy: 0 errors (144 source files), Ruff OK   [PASSED]
+  2. Static Typing & Linting Quality    : Mypy: 0 errors (145 source files), Ruff OK   [PASSED]
   3. Kafka Ingestion Throughput         : 25,151 events/sec (>5,000 target)           [PASSED]
   4. In-Flight ML Prediction Quality    : ROC-AUC: 0.992, F1-Score: 0.923 (CPU)        [PASSED]
   5. TreeSHAP Additive Consistency      : Exact local fidelity (sum phi_i = f(x)-E[f]) [PASSED]
@@ -167,10 +172,18 @@ All subsystem benchmarks are empirically verified and reproducible via automated
 
 ---
 
-## 6. Quick Start & Demonstration Options
+## 6. Demonstration & Quick Start Guides
 
-### Option A: 1-Command Local Docker Demo (Recommended)
-Runs the entire platform locally with zero external dependencies and zero cloud cost:
+### Option 1: 1-Click GitHub Codespaces (Browser)
+
+1. Click **[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/rishabh211200/TraceMind?quickstart=1)**.
+2. The Codespace initializes in ~60 seconds, builds the Docker demo topology, and bootstraps the 4 scenarios automatically.
+3. Click **Open in Browser** when the Port 80 forward notification appears (or navigate to the Ports tab $\rightarrow$ Port 80).
+4. Log in using the demo credentials below:
+   * **System Admin**: `admin@tracemind.io` / `TraceMind#Admin2026!` *(DEMO ONLY)*
+   * **Guest Viewer**: `viewer@tracemind.io` / `Viewer#Demo2026!` *(DEMO ONLY)*
+
+### Option 2: 1-Command Local Docker Demo (Offline)
 
 ```bash
 # 1. Clone repository
@@ -180,30 +193,31 @@ cd TraceMind
 # 2. Start demo container topology (single exposed port 80)
 docker compose -f docker-compose.demo.yml --env-file .env.demo up -d --build
 
-# 3. Seed deterministic telemetry, trained ML models & 4 showcase scenarios (2.2s)
+# 3. Seed deterministic telemetry, trained ML models & 4 showcase scenarios (2s)
 docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap.py
 
 # 4. Open dashboard in browser
 # URL: http://localhost
-# Admin User: admin@tracemind.io / TraceMind#Admin2026!
-# Viewer User: viewer@tracemind.io / Viewer#Demo2026!
 ```
 
-### Option B: Local Python Development Setup
+### Option 3: Local Python & Node Development Setup
 
 ```bash
-# 1. Set up virtual environment
+# Backend virtual environment
 uv venv .venv --python 3.12
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv pip install -e ".[dev,ml]"
-
-# 2. Run backend API Gateway
 uvicorn apps.api.main:app --reload --port 8000
 
-# 3. In a separate terminal, run frontend
+# Frontend development server
 cd frontend
 npm install
 npm run dev
+```
+
+### 🧹 Teardown & Environment Cleanup
+```bash
+docker compose -f docker-compose.demo.yml --env-file .env.demo down -v
 ```
 
 ---

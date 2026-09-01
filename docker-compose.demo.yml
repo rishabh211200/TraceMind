@@ -74,21 +74,6 @@ services:
     networks:
       - tracemind-demo-net
 
-  migrator:
-    build:
-      context: .
-      dockerfile: infrastructure/docker/Dockerfile.migrator
-    container_name: tracemind-demo-migrator
-    restart: "no"
-    environment:
-      ENVIRONMENT: demo
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tracemind_demo}:${POSTGRES_PASSWORD:-tracemind_demo_secret_2026}@postgres:5432/${POSTGRES_DB:-tracemind_demo_db}
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - tracemind-demo-net
-
   api:
     build:
       context: .
@@ -109,13 +94,13 @@ services:
       REMEDIATION_ACTUATOR_TYPE: in_memory
     expose:
       - "8000"
+    volumes:
+      - ./scripts:/app/scripts:ro
     depends_on:
       postgres:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
@@ -147,8 +132,6 @@ services:
         condition: service_healthy
       kafka:
         condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
     deploy:
       resources:
         limits:
