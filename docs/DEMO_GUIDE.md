@@ -15,19 +15,42 @@ This demo profile is engineered to provide a **safe, 100% reproducible, zero-rec
 ### Key Demo Safeguards
 * **Zero External Cloud Costs**: Uses an offline, deterministic ReAct AI Analyst (`MockLLMClient`). Zero external paid API calls or cloud dependencies.
 * **Safe In-Memory Actuation**: All remediation actions (traffic diversion, circuit breaking) operate strictly inside an in-process simulation dictionary (`InMemoryRoutingActuator`). No outbound network packets, webhooks, or real infrastructure mutations are possible.
-* **Public Port Isolation**: Only Nginx (Port `80` or `5173`) is exposed to the host. PostgreSQL (`5432`), Kafka (`9092`), Prometheus (`9090`), Grafana (`3000`), and API (`8000`) remain strictly isolated on the private Docker bridge.
+* **Public Port Isolation**: Only Nginx (Port `80`) is exposed to the host. PostgreSQL (`5432`), Kafka (`9092`), Prometheus (`9090`), Grafana (`3000`), and API (`8000`) remain strictly isolated on the private Docker bridge.
 * **Pre-Seeded Showcase Scenarios**: A single bootstrap command seeds 4 deterministic incident scenarios with ground-truth root-cause evidence and cryptographic audit trails.
 
 ---
 
-## 2. Quickstart: Launching the Demo
+## 2. Showcase Architecture: Production vs. Showcase Profile
+
+TraceMind is architected for full enterprise production with Kubernetes and Kafka streaming, but provides an isolated zero-cost showcase profile for demos:
+
+| Platform Layer | Production Architecture | Zero-Cost Showcase / Codespaces Profile | Showcase Implementation Details |
+|---|---|---|---|
+| **Presentation Plane** | Nginx Ingress + React 18 SPA | Nginx Reverse Proxy (Port 80) + React 18 SPA | Identical production React UI bundle; SPA routing via Nginx. |
+| **API Gateway** | FastAPI Async (Multi-Replica HPA) | FastAPI Async (Single Container) | Identical async endpoints, RS256 token verification, rate limiting. |
+| **Persistence** | Distributed TimescaleDB / Aurora | Local TimescaleDB / PostgreSQL 16 | Partitioned hypertables with async SQLAlchemy repository persistence. |
+| **Event Streaming** | Managed Kafka Cluster (3+ Brokers) | Single-Node Apache Kafka 3.7.0 (KRaft) | Zero ZooKeeper dependency; high-throughput streaming. |
+| **Streaming Worker** | Python aiokafka Consumer Group | Single-Instance Python Worker | Real-time micro-batch ingestion pipeline (>25k events/s). |
+| **Failure Prediction** | XGBoost + TreeSHAP (CPU/GPU) | In-Process XGBoost + TreeSHAP | Trained in-process (<1.5s) on synthetic baseline traces. |
+| **Anomaly Detection** | Multi-Model Unsupervised Ensemble | In-Process Isolation Forest + IQR/Z-Score | Bootstrapped from local nominal telemetry distributions. |
+| **Causal Graph RCA** | NetworkX Causal Back-Traversal | In-Process Causal DAG Traversal | Deterministic incident signature matching ($P_{99} \le 1.15\text{ ms}$). |
+| **3D Pareto Optimizer**| Multi-Objective Frontier Solver | In-Process 3D Pareto Optimizer | Solves Latency vs Cost vs Reliability trade-offs ($P_{99} \le 0.37\text{ ms}$). |
+| **AI Analyst** | OpenAI GPT-4o / Claude 3.5 API | **`MockLLMClient` (Deterministic ReAct)** | **$0.00 Cost**: In-process keyword/regex tool calling; zero external HTTP calls. |
+| **Remediation Actuator**| Envoy / Istio Mesh / Cloud Webhooks | **`InMemoryRoutingActuator`** | **Safe**: Mutates in-memory routing table with `asyncio.Lock`; zero cloud mutations. |
+| **Audit Ledger** | SHA-256 Merkle Ledger in Timescale | SHA-256 Merkle Ledger in Timescale | Cryptographic hash chaining computed on every actuation plan. |
+| **Observability** | Prometheus + Distributed Grafana | Internal Prometheus + Grafana Containers | Optional PromQL scraping and pre-provisioned dashboards. |
+
+---
+
+## 3. Quickstart: Launching the Demo
 
 ### Option A: 1-Click GitHub Codespaces (Browser)
 
 1. Navigate to the [TraceMind GitHub Repository](https://github.com/rishabh211200/TraceMind).
-2. Click **Code** $\rightarrow$ **Codespaces** $\rightarrow$ **Create codespace on main**.
-3. Codespaces automatically starts `docker-compose.demo.yml` and runs the bootstrap seeder.
-4. When prompted, click **Open in Browser** on port `80` (or visit the forwarded ports tab).
+2. Click **Code** $\rightarrow$ **Codespaces** $\rightarrow$ **Create codespace on main** (or click the badge below):
+   [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/rishabh211200/TraceMind?quickstart=1)
+3. Codespaces automatically launches the containers via `docker compose -f docker-compose.demo.yml --env-file .env.demo up --build -d` and seeds telemetry in the background.
+4. When prompted, click **Open in Browser** on forwarded port `80` (or visit the Ports tab).
 
 ---
 
@@ -50,7 +73,7 @@ docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap
 
 ---
 
-## 3. Demo Showcase Credentials & Access Points
+## 4. Demo Showcase Credentials & Access Points
 
 > ⚠️ **DEMO-ONLY CREDENTIALS NOTICE**:  
 > All credentials listed below (`admin@tracemind.io`, `TraceMind#Admin2026!`, `tm_live_demo_...`) are strictly ephemeral, deterministic demo values generated locally by `scripts/demo_bootstrap.py` in your local container database. They have **zero access** to any external cloud service, production infrastructure, or public network.
@@ -66,7 +89,7 @@ docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap
 
 ---
 
-## 4. The 4 Deterministic Showcase Scenarios
+## 5. The 4 Deterministic Showcase Scenarios
 
 The bootstrap seeder initializes 4 realistic failure scenarios ready for live walkthroughs:
 
@@ -121,7 +144,7 @@ flowchart TD
 
 ---
 
-## 5. Timed 3–5 Minute Technical Presentation Script
+## 6. Timed 3–5 Minute Technical Presentation Script
 
 Use this script during live interviews, portfolio reviews, or recorded video walkthroughs:
 
@@ -159,7 +182,7 @@ system resilience."
 
 ---
 
-## 6. Interview Talking Points & Defensible Differentiators
+## 7. Interview Talking Points & Defensible Differentiators
 
 When discussing TraceMind with senior engineers or hiring managers, highlight these verified architectural facts:
 
@@ -178,7 +201,7 @@ When discussing TraceMind with senior engineers or hiring managers, highlight th
 
 ---
 
-## 7. Teardown & Reset Commands
+## 8. Teardown & Reset Commands
 
 To reset the demo environment to a pristine state:
 
