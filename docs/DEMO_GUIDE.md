@@ -50,16 +50,7 @@ docker compose -f docker-compose.demo.yml exec api python scripts/demo_bootstrap
 
 ---
 
-## 3. Demo Showcase Credentials & Access Points
 
-| Resource | URL / Port | Credentials / Notes |
-|---|---|---|
-| **TraceMind Web Dashboard** | `http://localhost` (or Codespaces Port 80) | Public read-only exploration by default (`Role.VIEWER`). |
-| **System Admin Login** | Click **Security** $\rightarrow$ Sign In | Email: `admin@tracemind.io`<br>Password: `TraceMind#Admin2026!` |
-| **Guest Viewer Login** | Click **Security** $\rightarrow$ Sign In | Email: `viewer@tracemind.io`<br>Password: `Viewer#Demo2026!` |
-| **Fixed Demo API Key** | Header: `X-API-Key` | `tm_live_demo_0123456789abcdef0123456789abcdef` |
-| **OpenAPI Swagger UI** | `http://localhost/docs` | Interactive REST & SSE API documentation. |
-| **Prometheus Raw Metrics** | `http://localhost/metrics` | Proxied through Nginx. |
 
 ---
 
